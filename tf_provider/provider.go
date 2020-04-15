@@ -8,7 +8,7 @@ import (
 func Provider() *schema.Provider {
         return &schema.Provider{
                 ResourcesMap: map[string]*schema.Resource{
-                        "register_cluster": resourceRegisterCluster(),
+                        "anthos_register_cluster": resourceRegisterCluster(),
                 },
         }
 }

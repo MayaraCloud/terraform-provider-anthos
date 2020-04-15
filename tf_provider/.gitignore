@@ -1,2 +1,4 @@
 # Go binary
 terraform-provider-anthos
+.terraform
+terraform.tfstate
