@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
     "github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+    "fmt"
 )
 
 func resourceMembership() *schema.Resource {
@@ -13,20 +13,36 @@ func resourceMembership() *schema.Resource {
         Delete: resourceMembershipDelete,
 
         Schema: map[string]*schema.Schema{
-            "testfield": &schema.Schema{
+            "cluster_name": &schema.Schema{
                 Type:     schema.TypeString,
                 Required: true,
+            },
+            "k8s_config_file": &schema.Schema{
+                Type:     schema.TypeString,
+                Required: false,
+                Description: "Kubernetes specific credentials file",
+                ConflictsWith: []string{"k8s_context"},
+            },
+            "k8s_context": &schema.Schema{
+                Type:     schema.TypeString,
+                Default: "current",
+                Required: false,
+                Description: "Use a context of the default credentials file",
+                ConflictsWith: []string{"k8s_config_file"},
             },
         },
     }
 }
 
 func resourceMembershipCreate(d *schema.ResourceData, m interface{}) error {
+    kubeUUID, err := getK8sClusterUUID(d)
+    if err != nil {
+        return fmt.Errorf("Getting uuid: %w", err)
+    }
 	return resourceMembershipRead(d, m)
 }
 
 func resourceMembershipRead(d *schema.ResourceData, m interface{}) error {
-	fmt.Println("Testing Terraform Anthos provider")
 	return nil
 }
 
