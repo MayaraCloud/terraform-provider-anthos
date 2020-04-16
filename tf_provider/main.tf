@@ -1,3 +1,3 @@
-resource "anthos_register_cluster" "mayara_gke" {
+resource "anthos_cluster_membership" "mayara_gke" {
     testfield = "dummy_content"
 }

@@ -5,12 +5,12 @@ import (
     "github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
-func resourceRegisterCluster() *schema.Resource {
+func resourceMembership() *schema.Resource {
     return &schema.Resource{
-        Create: resourceRegisterClusterCreate,
-        Read:   resourceRegisterClusterRead,
-        Update: resourceRegisterClusterUpdate,
-        Delete: resourceRegisterClusterDelete,
+        Create: resourceMembershipCreate,
+        Read:   resourceMembershipRead,
+        Update: resourceMembershipUpdate,
+        Delete: resourceMembershipDelete,
 
         Schema: map[string]*schema.Schema{
             "testfield": &schema.Schema{
@@ -21,19 +21,19 @@ func resourceRegisterCluster() *schema.Resource {
     }
 }
 
-func resourceRegisterClusterCreate(d *schema.ResourceData, m interface{}) error {
-	return resourceRegisterClusterRead(d, m)
+func resourceMembershipCreate(d *schema.ResourceData, m interface{}) error {
+	return resourceMembershipRead(d, m)
 }
 
-func resourceRegisterClusterRead(d *schema.ResourceData, m interface{}) error {
+func resourceMembershipRead(d *schema.ResourceData, m interface{}) error {
 	fmt.Println("Testing Terraform Anthos provider")
 	return nil
 }
 
-func resourceRegisterClusterUpdate(d *schema.ResourceData, m interface{}) error {
-	return resourceRegisterClusterRead(d, m)
+func resourceMembershipUpdate(d *schema.ResourceData, m interface{}) error {
+	return resourceMembershipRead(d, m)
 }
 
-func resourceRegisterClusterDelete(d *schema.ResourceData, m interface{}) error {
+func resourceMembershipDelete(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
