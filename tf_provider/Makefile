@@ -4,5 +4,17 @@
 # Requirements:
 #   * GNU make
 
-all:
+
+all: plan
+
+plan: init
+	terraform plan -out /tmp/tf.plan
+
+init: build
+	terraform init
+
+build:
 	go build -o terraform-provider-anthos
+
+apply:
+	terraform apply /tmp/tf.plan

@@ -20,6 +20,7 @@ func resourceMembership() *schema.Resource {
             "k8s_config_file": &schema.Schema{
                 Type:     schema.TypeString,
                 Required: false,
+                Optional: true,
                 Description: "Kubernetes specific credentials file",
                 ConflictsWith: []string{"k8s_context"},
             },
@@ -27,6 +28,7 @@ func resourceMembership() *schema.Resource {
                 Type:     schema.TypeString,
                 Default: "current",
                 Required: false,
+                Optional: true,
                 Description: "Use a context of the default credentials file",
                 ConflictsWith: []string{"k8s_config_file"},
             },
@@ -39,6 +41,7 @@ func resourceMembershipCreate(d *schema.ResourceData, m interface{}) error {
     if err != nil {
         return fmt.Errorf("Getting uuid: %w", err)
     }
+    d.SetId(kubeUUID)
 	return resourceMembershipRead(d, m)
 }
 
