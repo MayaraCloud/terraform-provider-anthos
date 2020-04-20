@@ -1,4 +1,7 @@
-# Go binary
+# Go binaries
 terraform-provider-anthos
+test
+
+# Terraform files
 .terraform
 terraform.tfstate*
