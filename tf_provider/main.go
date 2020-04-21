@@ -23,5 +23,8 @@ func main() {
 }
 
 func debug() {
-    fmt.Println(hub.GetMembership("mayara-anthos", "mayara-gke", "", "", "", "", ))
+    client, _ := hub.GetMembership("mayara-anthos", "mayara-gke", "", "", "", "", )
+    fmt.Println("Resource: ", client.Resource)
+    fmt.Println("Calling update function:")
+    hub.CreateMembership("mayara-anthos", "mayara-fake", "fake_description", "", "814a82ce-80da-4ad9-b6b4-30aaaaaa7777", "")
 }

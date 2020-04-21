@@ -3,8 +3,6 @@ package hub
 import (
 	"fmt"
 	"context"
-	"golang.org/x/oauth2/google"
-	"google.golang.org/api/option"
 )
 func main() {}
 
@@ -16,17 +14,27 @@ func GetParentRef (project string, location string) ParentRef {
 	return ParentRef(fmt.Sprintf("projects/%v/locations/%v", project, location))
 }
 
-// GetMembership gets a Membership resource from the GKE Hub API
-func GetMembership(project string, membershipID string, description string, gkeClusterSelfLink string, externalID string, issuerURL string) (membership *Resource, err error) {
-	ctx := context.Background()
-	// Get default credentials https://godoc.org/golang.org/x/oauth2/google
-	creds, err := google.FindDefaultCredentials(ctx, "")
-	if err != nil {
-		return nil, fmt.Errorf("Getting credentials: %w", err)
-	}
-	// Create google api options with the generated credentials
-	options := option.WithCredentials(creds)
+// Global variable used for various context purposes
+var ctx = context.Background()
 
-	client, err := NewClient(ctx, project, options)
+
+// GetMembership gets a Membership resource from the GKEHub API
+func GetMembership(project string, membershipID string, description string, gkeClusterSelfLink string, externalID string, issuerURL string) (membership *Client, err error) {
+	client, err := NewClient(ctx, project)
+	if err != nil {
+		return nil, fmt.Errorf("Getting new client: %w", err)
+	}
 	return client.GetMembership(ctx, membershipID)
+}
+
+// CreateMembership creates a membership GKEHub resource 
+func CreateMembership(project string, membershipID string, description string, gkeClusterSelfLink string, externalID string, issuerURL string) error {
+	client, err := NewClient(ctx, project)
+	if err != nil {
+		return fmt.Errorf("Getting new client: %w", err)
+	}
+	client.Resource.Name = membershipID
+	client.Resource.ExternalID = externalID
+	client.Resource.Endpoint.GKECluster.ResourceLink = gkeClusterSelfLink
+	return client.CreateMembership(ctx)
 }

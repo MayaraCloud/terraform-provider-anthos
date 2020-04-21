@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"encoding/json"
 	"net/http"
+	"net/url"
+	"bytes"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 	htransport "google.golang.org/api/transport/http"
 )
@@ -25,6 +28,14 @@ type Client struct {
 	projectID string
 	svc       *Service
 	location string // location of the membership
+	Resource Resource
+}
+
+// Service type contains the http client and its context info
+type Service struct {
+	client    *http.Client
+	BasePath  string // API endpoint base URL
+	UserAgent string // optional additional User-Agent fragment
 }
 
 // State contains the status of a membership
@@ -66,15 +77,32 @@ type Resource struct {
 	ProjectID string
 }
 
+// GetOptionsWithCreds initializes a GKEhub client object
+func GetOptionsWithCreds(project string) (option.ClientOption, error) {
+	// Get default credentials https://godoc.org/golang.org/x/oauth2/google
+	creds, err := google.FindDefaultCredentials(ctx, "")
+	if err != nil {
+		return nil, fmt.Errorf("Getting credentials: %w", err)
+	}
+	// Create google api options with the generated credentials
+	options := option.WithCredentials(creds)
+
+	return options, nil
+}
+
 // NewClient creates a GKE hub client
-func NewClient(ctx context.Context, projectID string, opts ...option.ClientOption) (*Client, error){
+func NewClient(ctx context.Context, projectID string) (*Client, error){
+	options, err := GetOptionsWithCreds(projectID)
+	if err != nil {
+		return nil, fmt.Errorf("Getting options with credentials: %w", err)
+	}
 	// These are standard google api options
 	o := []option.ClientOption{
 		option.WithEndpoint(prodAddr),
 		option.WithScopes(cloudPlatformScope),
 		option.WithUserAgent(userAgent),
 	}
-	o = append(o, opts...)
+	o = append(o, options)
 
 	// Create the client that actually makes the api REST requests
 	httpClient, endpoint, err := htransport.NewClient(ctx, o...)
@@ -99,17 +127,12 @@ func NewClient(ctx context.Context, projectID string, opts ...option.ClientOptio
 	return c, nil
 }
 
-// Service type contains the http client and its context info
-type Service struct {
-	client    *http.Client
-	BasePath  string // API endpoint base URL
-	UserAgent string // optional additional User-Agent fragment
-}
-
-// GetMembership gets details of a hub membership
-func (c *Client) GetMembership(ctx context.Context, name string) (*Resource, error){
+// GetMembership gets details of a hub membership.
+// This method also initializes/updates the client component
+func (c *Client) GetMembership(ctx context.Context, name string) (*Client, error){
 	// Call the gkehub api
-	response, err := c.svc.client.Get(prodAddr + "v1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + name)
+	APIURL := prodAddr + "v1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + name
+	response, err := c.svc.client.Get(APIURL)
 	if err != nil {
 		return nil, fmt.Errorf("get request: %w", err)
 	}
@@ -119,13 +142,51 @@ func (c *Client) GetMembership(ctx context.Context, name string) (*Resource, err
 		return nil, fmt.Errorf("reading get request body: %w", err)
 	}
 
-	var resource Resource
-	err = json.Unmarshal(body, &resource)
+	err = json.Unmarshal(body, &c.Resource)
 	if err != nil {
 		return nil, fmt.Errorf("un-marshaling request body: %w", err)
 	}
-	resource.ProjectID = c.projectID
+	c.Resource.ProjectID = c.projectID
 
-	return &resource, nil
+	return c, nil
+}
 
+// CreateMembership updates a hub membership
+// The client object should already contain the
+// updated resource component updated in another method
+func (c *Client) CreateMembership(ctx context.Context) error {
+	// Create the json POST request body
+	var rawBody struct{
+		membership Resource
+	}
+	rawBody.membership = c.Resource
+	body , err := json.Marshal(rawBody)
+	if err != nil {
+		return fmt.Errorf("Marshaling create request body: %w", err)
+	}
+	// Create a url object to append parameters to it
+	APIURL := prodAddr + "v1/projects/" + c.projectID + "/locations/" + c.location + "/memberships"
+	u, err := url.Parse(APIURL)
+	if err != nil {
+		return fmt.Errorf("Parsing %v url: %w", APIURL, err)
+	}
+	q := u.Query()
+	q.Set("membershipId", c.Resource.Name)
+	u.RawQuery = q.Encode()
+
+	response, err := c.svc.client.Post(u.String(), "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("create POST request: %w", err)
+	}
+	defer response.Body.Close()
+
+	responseBody, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("reading get request body: %w", err)
+	}
+	//FIXME delete the next debugging line
+	fmt.Println(string(responseBody))
+
+	//FIXME implement a waiter that will wait for the resource to be successfully created
+	return nil
 }
