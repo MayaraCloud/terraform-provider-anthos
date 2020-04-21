@@ -5,6 +5,7 @@ import (
 	"time"
 	"context"
 	"fmt"
+	"encoding/json"
 	"net/http"
 	"google.golang.org/api/option"
 	htransport "google.golang.org/api/transport/http"
@@ -26,23 +27,18 @@ type Client struct {
 	location string // location of the membership
 }
 
-// Status is the current status of the operation or resource.
-type Status string
+// State contains the status of a membership
+type State struct {
+	Code string
+}
 
-const (
-	// StatusDone is a status indicating that the resource or operation is in done state.
-	StatusDone = Status("done")
-	// StatusPending is a status indicating that the resource or operation is in pending state.
-	StatusPending = Status("pending")
-	// StatusRunning is a status indicating that the resource or operation is in running state.
-	StatusRunning = Status("running")
-	// StatusError is a status indicating that the resource or operation is in error state.
-	StatusError = Status("error")
-	// StatusProvisioning is a status indicating that the resource or operation is in provisioning state.
-	StatusProvisioning = Status("provisioning")
-	// StatusStopping is a status indicating that the resource or operation is in stopping state.
-	StatusStopping = Status("stopping")
-)
+// Endpoint contains a map with a membership's endpoint information
+// At the moment it only has gke options
+type Endpoint struct {
+	GKECluster struct{
+		ResourceLink string
+	}
+}
 
 // Resource type contains specific info about a Hub membership resource
 type Resource struct {
@@ -50,18 +46,21 @@ type Resource struct {
 	// within this project and zone, and can be up to 40 characters.
 	Name string
 
-	// Description is the description of the membership. Optional.
-	Description string
-
 	// Status is the current status of the membership. It could either be
 	// StatusDone, StatusPending, StatusRunning, StatusError, StatusProvisioning, StatusStopping.
-	Status Status
+	State State
 
 	// Endpoint is the url of the hub API.
-	Endpoint string
+	Endpoint Endpoint
 
 	// Created is the creation time of this cluster.
-	Created time.Time
+	CreatedTime time.Time
+
+	// Updated is the update time of this cluster.
+	UpdatedTime time.Time
+	
+	// ExternalId is the uuid or the cluster name of the K8s cluster
+	ExternalID string
 
 	// ProjectID is the project id of this membership
 	ProjectID string
@@ -120,10 +119,13 @@ func (c *Client) GetMembership(ctx context.Context, name string) (*Resource, err
 		return nil, fmt.Errorf("reading get request body: %w", err)
 	}
 
-	//FIXME this is still in development we need to properly parse the body json object in order to properly populate the Resource return object
-	return &Resource{
-		Name: string(body),
-		Description: string(body),		
-	}, nil
+	var resource Resource
+	err = json.Unmarshal(body, &resource)
+	if err != nil {
+		return nil, fmt.Errorf("un-marshaling request body: %w", err)
+	}
+	resource.ProjectID = c.projectID
+
+	return &resource, nil
 
 }

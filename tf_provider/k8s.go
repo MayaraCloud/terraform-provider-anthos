@@ -66,5 +66,5 @@ func getK8sClusterUUID(d *schema.ResourceData) (string, error) {
 		return "", fmt.Errorf("Getting %v namespace details: %w", namespaceName, err)
 	}
 
-	return fmt.Sprintf("%v",namespace.GetUID()), nil
+	return string(namespace.GetUID()), nil
 }
