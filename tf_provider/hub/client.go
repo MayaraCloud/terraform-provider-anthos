@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"io"
 	"io/ioutil"
 	"time"
 	"context"
@@ -12,6 +13,7 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 	htransport "google.golang.org/api/transport/http"
+	"github.com/avast/retry-go"
 )
 
 const prodAddr = "https://gkehub.googleapis.com/"
@@ -21,6 +23,7 @@ const (
     // View and manage your data across Google Cloud Platform services
     cloudPlatformScope = "https://www.googleapis.com/auth/cloud-platform"
 )
+
 
 // Client is a Google Connect Hub client, which may be used to manage
 // hub memberships with a project. It must be constructed via NewClient.
@@ -75,6 +78,9 @@ type Resource struct {
 
 	// ProjectID is the project id of this membership
 	ProjectID string
+
+	// Description is the description of this membership
+	Description string
 }
 
 // GetOptionsWithCreds initializes a GKEhub client object
@@ -150,43 +156,109 @@ func (c *Client) GetMembership(ctx context.Context, name string) (*Client, error
 
 	return c, nil
 }
-
 // CreateMembership updates a hub membership
 // The client object should already contain the
 // updated resource component updated in another method
 func (c *Client) CreateMembership(ctx context.Context) error {
+	// Calling the creation API
+	createResponse, err := c.CallCreateMembershipAPI(ctx)
+	if err != nil {
+		return fmt.Errorf("Calling CallCreateMembershipAPI: %w", err)
+	}
+	
+	// Wait until we get an ok from CheckOperation
+	retry.Attempts(60)
+	err = retry.Do(
+		func() error {
+			return c.CheckOperation(ctx, createResponse["name"].(string))
+		})
+
+	if err != nil {
+		return fmt.Errorf("Retry checking CreateMembership operation: %w", err)
+	}
+
+	return nil
+}
+
+// CallCreateMembershipAPI updates a hub membership
+// The client object should already contain the
+// updated resource component updated in another method
+func (c *Client) CallCreateMembershipAPI(ctx context.Context) (HTTPResult, error) {
 	// Create the json POST request body
 	var rawBody struct{
-		membership Resource
+		Description string `json:"description"`
+		ExternalID string	`json:"externalId"`
 	}
-	rawBody.membership = c.Resource
+	rawBody.Description = c.Resource.Description
+	rawBody.ExternalID = c.Resource.ExternalID
+
 	body , err := json.Marshal(rawBody)
 	if err != nil {
-		return fmt.Errorf("Marshaling create request body: %w", err)
+		return nil, fmt.Errorf("Marshaling create request body: %w", err)
 	}
 	// Create a url object to append parameters to it
 	APIURL := prodAddr + "v1/projects/" + c.projectID + "/locations/" + c.location + "/memberships"
 	u, err := url.Parse(APIURL)
 	if err != nil {
-		return fmt.Errorf("Parsing %v url: %w", APIURL, err)
+		return nil, fmt.Errorf("Parsing %v url: %w", APIURL, err)
 	}
 	q := u.Query()
+	q.Set("alt", "json")
 	q.Set("membershipId", c.Resource.Name)
 	u.RawQuery = q.Encode()
-
 	response, err := c.svc.client.Post(u.String(), "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		return fmt.Errorf("create POST request: %w", err)
+		return nil, fmt.Errorf("create POST request: %w", err)
 	}
 	defer response.Body.Close()
 
-	responseBody, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return fmt.Errorf("reading get request body: %w", err)
-	}
-	//FIXME delete the next debugging line
-	fmt.Println(string(responseBody))
+	return DecodeHTTPResult(response.Body)
+}
 
-	//FIXME implement a waiter that will wait for the resource to be successfully created
-	return nil
+// HTTPResult is used to store the result of an http request
+type HTTPResult map[string]interface{}
+
+// DecodeHTTPResult decodes an http response body
+func DecodeHTTPResult(httpBody io.ReadCloser) (HTTPResult, error) {
+	var h HTTPResult
+	err := json.NewDecoder(httpBody).Decode(&h)
+	if err != nil {
+		return nil, fmt.Errorf("Decoding http body response: %w", err)
+	}
+	return h, nil
+}
+
+// CheckOperation checks a hub operation status and returns true if the operation is done
+func (c *Client) CheckOperation(ctx context.Context, operationName string) error {
+	// Create a url object to append parameters to it
+	APIURL := prodAddr + "v1/" + operationName
+	u, err := url.Parse(APIURL)
+	if err != nil {
+		return retry.Unrecoverable(fmt.Errorf("Parsing %v url: %w", APIURL, err))
+	}
+	q := u.Query()
+	q.Set("alt", "json")
+	u.RawQuery = q.Encode()
+	response, err := c.svc.client.Get(u.String())
+	if err != nil {
+		return retry.Unrecoverable(fmt.Errorf("create POST request: %w", err))
+	}
+	defer response.Body.Close()
+	
+	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
+	if !statusOK {
+		return retry.Unrecoverable(fmt.Errorf("Bad status code: %v", response.StatusCode))
+	}
+	
+	result, err := DecodeHTTPResult(response.Body)
+	if err != nil {
+		return retry.Unrecoverable(fmt.Errorf("Calling DecodeHTTPResult: %w", err))
+	}
+
+	fmt.Println(result)
+	if result["done"] == true {
+		return nil
+	}
+	return fmt.Errorf("not done")
+
 }

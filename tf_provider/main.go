@@ -23,8 +23,11 @@ func main() {
 }
 
 func debug() {
-    client, _ := hub.GetMembership("mayara-anthos", "mayara-gke", "", "", "", "", )
-    fmt.Println("Resource: ", client.Resource)
+    //client, _ := hub.GetMembership("mayara-anthos", "mayara-gke", "", "", "", "", )
+    //fmt.Println("Resource: ", client.Resource)
     fmt.Println("Calling update function:")
-    hub.CreateMembership("mayara-anthos", "mayara-fake", "fake_description", "", "814a82ce-80da-4ad9-b6b4-30aaaaaa7777", "")
+    err := hub.CreateMembership("mayara-anthos", "mayara-fake", "fake_description", "", "814a82ce-80da-4ad9-b6b4-30aaaaaa7777", "")
+    if err != nil{
+        println("Error: ", err.Error())
+    }
 }
