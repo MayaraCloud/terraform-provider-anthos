@@ -10,6 +10,9 @@ all: plan
 plan: init
 	terraform plan -out /tmp/tf.plan
 
+debug: init
+	TF_LOG=DEBUG terraform plan -out /tmp/tf.plan
+
 init: build
 	terraform init
 

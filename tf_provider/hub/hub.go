@@ -27,7 +27,7 @@ func GetMembership(project string, membershipID string, description string, gkeC
 }
 
 // CreateMembership creates a membership GKEHub resource 
-func CreateMembership(project string, membershipID string, description string, gkeClusterSelfLink string, externalID string, issuerURL string) error {
+func CreateMembership(project string, membershipID string, description string, gkeClusterSelfLink string, externalID string, issuerURL string, membershipManifest string) error {
 	client, err := NewClient(ctx, project)
 	if err != nil {
 		return fmt.Errorf("Getting new client: %w", err)
@@ -38,5 +38,6 @@ func CreateMembership(project string, membershipID string, description string, g
 	client.Resource.Description = membershipID
 	client.Resource.ExternalID = externalID
 	client.Resource.Endpoint.GKECluster.ResourceLink = gkeClusterSelfLink
+	client.K8S.CRManifest = membershipManifest
 	return client.CreateMembership(ctx)
 }

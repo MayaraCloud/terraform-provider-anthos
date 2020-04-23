@@ -70,3 +70,29 @@ func GetK8sClusterUUID(d *schema.ResourceData) (string, error) {
 
 	return string(namespace.GetUID()), nil
 }
+
+// GetMembershipCR get the Membership CR
+func GetMembershipCR(d *schema.ResourceData) (string, error) {
+	kubeClient, err := KubeClientSet(d)
+	if err != nil {
+		return "", fmt.Errorf("Initializing Kube clientset: %w", err)
+	}
+	object, err := kubeClient.RESTClient().Get().AbsPath("apis/hub.gke.io/v1/memberships/membership").DoRaw()
+	if err != nil {
+		return "", fmt.Errorf("Getting the membership object: %w", err)
+	}
+	return string(string(object)), nil
+}
+
+// GetMembershipCRD get the Membership CRD
+func GetMembershipCRD(d *schema.ResourceData) (string, error) {
+	kubeClient, err := KubeClientSet(d)
+	if err != nil {
+		return "", fmt.Errorf("Initializing Kube clientset: %w", err)
+	}
+	object, err := kubeClient.RESTClient().Get().AbsPath("apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/memberships.hub.gke.io").DoRaw()
+	if err != nil {
+		return "", fmt.Errorf("Getting the membership CRD object: %w", err)
+	}
+	return string(string(object)), nil
+}

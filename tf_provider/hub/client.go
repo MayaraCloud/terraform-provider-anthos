@@ -32,6 +32,13 @@ type Client struct {
 	svc       *Service
 	location string // location of the membership
 	Resource Resource
+	K8S K8S
+}
+
+// K8S contains the membership K8S manifests
+type K8S struct {
+	CRManifest string
+	CRDManifest string
 }
 
 // Service type contains the http client and its context info
@@ -44,6 +51,7 @@ type Service struct {
 // State contains the status of a membership
 type State struct {
 	Code string
+	Message string
 }
 
 //FIXME check the actual status code in the API and change if it does not match
@@ -182,6 +190,10 @@ func (c *Client) GetMembership(ctx context.Context, name string) error {
 // The client object should already contain the
 // updated resource component updated in another method
 func (c *Client) CreateMembership(ctx context.Context) error {
+	err := c.ValidateExclusivity(ctx)
+	if err != nil {
+		return fmt.Errorf("Validating exclusivity: %w", err)
+	}
 	// Try to populate the resource from the registry
 	c.GetMembership(ctx, c.Resource.Name)
 	if c.Resource.State.Code != StateNotPresent {
@@ -232,6 +244,7 @@ func (c *Client) CallCreateMembershipAPI(ctx context.Context) (HTTPResult, error
 	q.Set("alt", "json")
 	q.Set("membershipId", c.Resource.Name)
 	u.RawQuery = q.Encode()
+	// Go ahead with the request
 	response, err := c.svc.client.Post(u.String(), "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		return nil, fmt.Errorf("create POST request: %w", err)
@@ -258,6 +271,7 @@ func DecodeHTTPResult(httpBody io.ReadCloser) (HTTPResult, error) {
 func (c *Client) CheckOperation(ctx context.Context, operationName string) error {
 	// Create a url object to append parameters to it
 	APIURL := prodAddr + "v1/" + operationName
+	// Create the url parameters
 	u, err := url.Parse(APIURL)
 	if err != nil {
 		return retry.Unrecoverable(fmt.Errorf("Parsing %v url: %w", APIURL, err))
@@ -265,6 +279,7 @@ func (c *Client) CheckOperation(ctx context.Context, operationName string) error
 	q := u.Query()
 	q.Set("alt", "json")
 	u.RawQuery = q.Encode()
+	// Go ahead with the request
 	response, err := c.svc.client.Get(u.String())
 	if err != nil {
 		return retry.Unrecoverable(fmt.Errorf("create POST request: %w", err))
@@ -290,5 +305,39 @@ func (c *Client) CheckOperation(ctx context.Context, operationName string) error
 
 // ValidateExclusivity checks the cluster exclusivity against the API
 func (c *Client) ValidateExclusivity(ctx context.Context) error {
-	return nil
+	// Call the gkehub api
+	APIURL := prodAddr + "v1beta1/projects/" + c.projectID + "/locations/" + c.location + "/memberships:validateExclusivity"
+	// Create the url parameters
+	u, err := url.Parse(APIURL)
+	if err != nil {
+		return retry.Unrecoverable(fmt.Errorf("Parsing %v url: %w", APIURL, err))
+	}
+	q := u.Query()
+	q.Set("crManifest", c.K8S.CRManifest)
+	q.Set("alt", "json")
+	u.RawQuery = q.Encode()
+	//return fmt.Errorf("%v", u.String())
+	// Go ahead with the request
+	response, err := c.svc.client.Get(u.String())
+	if err != nil {
+		return fmt.Errorf("get request: %w", err)
+	}
+	defer response.Body.Close()
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("reading get request body: %w", err)
+	}
+	return fmt.Errorf("%v", string(body))
+
+	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
+	if !statusOK {
+		return fmt.Errorf("Bad status code: %v", string(body))
+	}
+
+	err = json.Unmarshal(body, &c.Resource)
+	if err != nil {
+		return fmt.Errorf("un-marshaling request body: %w", err)
+	}
+
+	return fmt.Errorf("Not an error: %v", string(body))
 }

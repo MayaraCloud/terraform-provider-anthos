@@ -5,6 +5,7 @@ test
 # Terraform files
 .terraform
 terraform.tfstate*
+crash.log
 
 # :)
 notes.txt
