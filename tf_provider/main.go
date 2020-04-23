@@ -3,6 +3,7 @@ package main
 import (
     "fmt"
     "gitlab.com/mayara/private/anthos/hub"
+    "gitlab.com/mayara/private/anthos/k8s"
     "github.com/hashicorp/terraform-plugin-sdk/plugin"
     "github.com/hashicorp/terraform-plugin-sdk/terraform"
 )

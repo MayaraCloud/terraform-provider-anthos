@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"context"
 )
-func main() {}
 
 // ParentRef is the resource name of the parent collection of a membership.
 type ParentRef string

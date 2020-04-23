@@ -1,4 +1,4 @@
-package main
+package k8s
 
 import (
 	"fmt"
@@ -8,10 +8,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // This is needed for gcp auth
 )
 
-func kubeClientSet(d *schema.ResourceData) (*kubernetes.Clientset, error) {
+// KubeClientSet initializes the kubernetes API client
+func KubeClientSet(d *schema.ResourceData) (*kubernetes.Clientset, error) {
 	kubeConfig := d.Get("k8s_config_file").(string)
 	kubeContext := d.Get("k8s_context").(string)
 
@@ -55,8 +56,9 @@ func homeDir() string {
 	return os.Getenv("USERPROFILE") // windows
 }
 
-func getK8sClusterUUID(d *schema.ResourceData) (string, error) {
-	kubeClient, err := kubeClientSet(d)
+// GetK8sClusterUUID returns the kube-system namespace UID
+func GetK8sClusterUUID(d *schema.ResourceData) (string, error) {
+	kubeClient, err := KubeClientSet(d)
 	if err != nil {
 		return "", fmt.Errorf("Initializing Kube clientset: %w", err)
 	}

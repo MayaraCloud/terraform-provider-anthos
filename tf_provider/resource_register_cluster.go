@@ -3,6 +3,7 @@ package main
 import (
     "github.com/hashicorp/terraform-plugin-sdk/helper/schema"
     "fmt"
+    "gitlab.com/mayara/private/anthos/k8s"
 )
 
 func resourceMembership() *schema.Resource {
@@ -37,7 +38,7 @@ func resourceMembership() *schema.Resource {
 }
 
 func resourceMembershipCreate(d *schema.ResourceData, m interface{}) error {
-    kubeUUID, err := getK8sClusterUUID(d)
+    kubeUUID, err := k8s.getK8sClusterUUID(d)
     if err != nil {
         return fmt.Errorf("Getting uuid: %w", err)
     }

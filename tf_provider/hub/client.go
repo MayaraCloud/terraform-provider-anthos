@@ -52,6 +52,7 @@ const (
 	StateNotPresent = "NOT_PRESENT"
 )
 
+// StateCode returns the state code of the State struct
 func (s State) StateCode() string {
 	return s.Code
 }
@@ -285,5 +286,9 @@ func (c *Client) CheckOperation(ctx context.Context, operationName string) error
 		return nil
 	}
 	return fmt.Errorf("not done")
+}
 
+// ValidateExclusivity checks the cluster exclusivity against the API
+func (c *Client) ValidateExclusivity(ctx context.Context) error {
+	return nil
 }
