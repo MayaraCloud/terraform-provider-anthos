@@ -46,6 +46,16 @@ type State struct {
 	Code string
 }
 
+//FIXME check the actual status code in the API and change if it does not match
+const (
+	StateREADY = "READY"
+	StateNotPresent = "NOT_PRESENT"
+)
+
+func (s State) StateCode() string {
+	return s.Code
+}
+
 // Endpoint contains a map with a membership's endpoint information
 // At the moment it only has gke options
 type Endpoint struct {
@@ -135,31 +145,47 @@ func NewClient(ctx context.Context, projectID string) (*Client, error){
 
 // GetMembership gets details of a hub membership.
 // This method also initializes/updates the client component
-func (c *Client) GetMembership(ctx context.Context, name string) (*Client, error){
+func (c *Client) GetMembership(ctx context.Context, name string) error {
 	// Call the gkehub api
 	APIURL := prodAddr + "v1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + name
 	response, err := c.svc.client.Get(APIURL)
 	if err != nil {
-		return nil, fmt.Errorf("get request: %w", err)
+		return fmt.Errorf("get request: %w", err)
 	}
 	defer response.Body.Close()
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("reading get request body: %w", err)
+		return fmt.Errorf("reading get request body: %w", err)
+	}
+
+	if response.StatusCode == 404 {
+		c.Resource.State.Code = StateNotPresent
+		return nil
+	}
+
+	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
+	if !statusOK {
+		return fmt.Errorf("Bad status code: %v", response.StatusCode)
 	}
 
 	err = json.Unmarshal(body, &c.Resource)
 	if err != nil {
-		return nil, fmt.Errorf("un-marshaling request body: %w", err)
+		return fmt.Errorf("un-marshaling request body: %w", err)
 	}
 	c.Resource.ProjectID = c.projectID
 
-	return c, nil
+	return nil
 }
+
 // CreateMembership updates a hub membership
 // The client object should already contain the
 // updated resource component updated in another method
 func (c *Client) CreateMembership(ctx context.Context) error {
+	// Try to populate the resource from the registry
+	c.GetMembership(ctx, c.Resource.Name)
+	if c.Resource.State.Code != StateNotPresent {
+		return fmt.Errorf("Creating membership, the membership is already present")
+	}
 	// Calling the creation API
 	createResponse, err := c.CallCreateMembershipAPI(ctx)
 	if err != nil {
@@ -176,7 +202,6 @@ func (c *Client) CreateMembership(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("Retry checking CreateMembership operation: %w", err)
 	}
-
 	return nil
 }
 

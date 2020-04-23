@@ -19,10 +19,10 @@ var ctx = context.Background()
 
 
 // GetMembership gets a Membership resource from the GKEHub API
-func GetMembership(project string, membershipID string, description string, gkeClusterSelfLink string, externalID string, issuerURL string) (membership *Client, err error) {
+func GetMembership(project string, membershipID string, description string, gkeClusterSelfLink string, externalID string, issuerURL string) error {
 	client, err := NewClient(ctx, project)
 	if err != nil {
-		return nil, fmt.Errorf("Getting new client: %w", err)
+		return fmt.Errorf("Getting new client: %w", err)
 	}
 	return client.GetMembership(ctx, membershipID)
 }
