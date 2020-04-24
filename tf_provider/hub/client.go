@@ -99,7 +99,7 @@ func NewClient(ctx context.Context, projectID string) (*Client, error){
 
 // GetMembership gets details of a hub membership.
 // This method also initializes/updates the client component
-func (c *Client) GetMembership(ctx context.Context, name string) error {
+func (c *Client) GetMembership(ctx context.Context, name string, checkExisting bool) error {
 	// Call the gkehub api
 	APIURL := prodAddr + "v1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + name
 	response, err := c.svc.client.Get(APIURL)
@@ -112,14 +112,13 @@ func (c *Client) GetMembership(ctx context.Context, name string) error {
 		return fmt.Errorf("reading get request body: %w", err)
 	}
 
-	if response.StatusCode == 404 {
-		c.Resource.State.Code = MembershipStateCodeUnspecified
-		return nil
+	if checkExisting && response.StatusCode != 404 {
+		return fmt.Errorf("The resource already exists in the Hub: %v", string(body))
 	}
 
 	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
 	if !statusOK {
-		return fmt.Errorf("Bad status code: %v", response.StatusCode)
+		return fmt.Errorf("Bad %v status code: %v", response.StatusCode, string(body))
 	}
 
 	err = json.Unmarshal(body, &c.Resource)
@@ -134,11 +133,6 @@ func (c *Client) GetMembership(ctx context.Context, name string) error {
 // The client object should already contain the
 // updated resource component updated in another method
 func (c *Client) CreateMembership(ctx context.Context) error {
-	// Try to populate the resource from the registry
-	c.GetMembership(ctx, c.Resource.Name)
-	if c.Resource.State.Code != MembershipStateCodeUnspecified {
-		return fmt.Errorf("Creating membership, the membership is already present")
-	}
 	// Validate exclusivity
 	err := c.ValidateExclusivity(ctx)
 	if err != nil {
@@ -297,9 +291,8 @@ func (c *Client) ValidateExclusivity(ctx context.Context) error {
 		return fmt.Errorf("json Un-marshaling body: %w", err)
 	}
 
-	// 5 == NOT_FOUND in gRCP codes, see below.
-	// We need to be in status NOT_FOUND to validate the exclusivity
-	if result.Status.Code != 5 {
+	// 0 == OK in gRCP codes, see below.
+	if result.Status.Code != 0 {
 		return fmt.Errorf("%v", result.Status.Message)
 	}
 

@@ -23,7 +23,7 @@ func GetMembership(project string, membershipID string, description string, gkeC
 	if err != nil {
 		return fmt.Errorf("Getting new client: %w", err)
 	}
-	return client.GetMembership(ctx, membershipID)
+	return client.GetMembership(ctx, membershipID, false)
 }
 
 // CreateMembership creates a membership GKEHub resource 
@@ -32,7 +32,12 @@ func CreateMembership(project string, membershipID string, description string, g
 	if err != nil {
 		return fmt.Errorf("Getting new client: %w", err)
 	}
-	
+	// Check if membership already exists
+	err = client.GetMembership(ctx, membershipID, true)	
+	if err != nil {
+		return fmt.Errorf("Checking if membership exists: %w", err)
+	}
+
 	// Populate the membership resource fields with the parameters
 	client.Resource.Name = membershipID
 	client.Resource.Description = membershipID
