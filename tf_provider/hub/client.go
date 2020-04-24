@@ -139,10 +139,12 @@ func (c *Client) GetMembership(ctx context.Context, name string, checkNotExistin
 // The client object should already contain the
 // updated resource component updated in another method
 func (c *Client) CreateMembership(ctx context.Context) error {
-	// Validate exclusivity
-	err := c.ValidateExclusivity(ctx)
-	if err != nil {
-		return fmt.Errorf("Validating exclusivity: %w", err)
+	// Validate exclusivity if the cluster has a manifest CRD present
+	if c.K8S.CRManifest != "" {
+		err := c.ValidateExclusivity(ctx)
+		if err != nil {
+			return fmt.Errorf("Validating exclusivity: %w", err)
+		}
 	}
 	// Calling the creation API
 	createResponse, err := c.CallCreateMembershipAPI(ctx)

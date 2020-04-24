@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"fmt"
+	"strings"
 	"os"
 	"path/filepath"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
@@ -76,6 +77,14 @@ func GetMembershipCR(d *schema.ResourceData) (string, error) {
 	kubeClient, err := KubeClientSet(d)
 	if err != nil {
 		return "", fmt.Errorf("Initializing Kube clientset: %w", err)
+	}
+	_, err = kubeClient.RESTClient().Get().AbsPath("apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/memberships.hub.gke.io").DoRaw()
+	if err != nil {
+		// If there is no Membership CRD we just return an empty string
+		if strings.Contains(err.Error(), "the server could not find the requested resource") {		
+			return "", nil
+		}
+		return "", fmt.Errorf("Getting the membership CRD object: %w", err)
 	}
 	object, err := kubeClient.RESTClient().Get().AbsPath("apis/hub.gke.io/v1/memberships/membership").DoRaw()
 	if err != nil {
