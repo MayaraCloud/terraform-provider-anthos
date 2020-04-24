@@ -99,7 +99,7 @@ func NewClient(ctx context.Context, projectID string) (*Client, error){
 
 // GetMembership gets details of a hub membership.
 // This method also initializes/updates the client component
-func (c *Client) GetMembership(ctx context.Context, name string, checkExisting bool) error {
+func (c *Client) GetMembership(ctx context.Context, name string, checkNotExisting bool) error {
 	// Call the gkehub api
 	APIURL := prodAddr + "v1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + name
 	response, err := c.svc.client.Get(APIURL)
@@ -112,8 +112,14 @@ func (c *Client) GetMembership(ctx context.Context, name string, checkExisting b
 		return fmt.Errorf("reading get request body: %w", err)
 	}
 
-	if checkExisting && response.StatusCode != 404 {
+	// If we are checking if the resource does not exist
+	// we need a 404 here
+	if checkNotExisting && response.StatusCode != 404 {
 		return fmt.Errorf("The resource already exists in the Hub: %v", string(body))
+	}
+
+	if checkNotExisting && response.StatusCode == 404 {
+		return nil
 	}
 
 	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
