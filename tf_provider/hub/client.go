@@ -274,9 +274,9 @@ func (c *Client) ValidateExclusivity(ctx context.Context) error {
 	}
 	q := u.Query()
 	q.Set("crManifest", c.K8S.CRManifest)
+	q.Set("intendedMembership", c.Resource.Name)
 	q.Set("alt", "json")
 	u.RawQuery = q.Encode()
-	//return fmt.Errorf("%v", u.String())
 	// Go ahead with the request
 	response, err := c.svc.client.Get(u.String())
 	if err != nil {
