@@ -134,14 +134,15 @@ func (c *Client) GetMembership(ctx context.Context, name string) error {
 // The client object should already contain the
 // updated resource component updated in another method
 func (c *Client) CreateMembership(ctx context.Context) error {
-	err := c.ValidateExclusivity(ctx)
-	if err != nil {
-		return fmt.Errorf("Validating exclusivity: %w", err)
-	}
 	// Try to populate the resource from the registry
 	c.GetMembership(ctx, c.Resource.Name)
 	if c.Resource.State.Code != MembershipStateCodeUnspecified {
 		return fmt.Errorf("Creating membership, the membership is already present")
+	}
+	// Validate exclusivity
+	err := c.ValidateExclusivity(ctx)
+	if err != nil {
+		return fmt.Errorf("Validating exclusivity: %w", err)
 	}
 	// Calling the creation API
 	createResponse, err := c.CallCreateMembershipAPI(ctx)
@@ -240,11 +241,24 @@ func (c *Client) CheckOperation(ctx context.Context, operationName string) error
 		return retry.Unrecoverable(fmt.Errorf("Calling DecodeHTTPResult: %w", err))
 	}
 
-	fmt.Println(result)
+	// Example of server response
+	//Decoded request body map[
+ 	//   done:false
+ 	//   metadata:map[
+ 	//       @type:type.googleapis.com/google.cloud.common.OperationMetadata
+ 	//       apiVersion:v1
+ 	//       cancelRequested:false
+ 	//       createTime:2020-04-22T12:49:33.864009221Z
+ 	//       target:projects/mayara-anthos/locations/global/memberships/mayara-fake
+ 	//       verb:create]
+ 	//   name:projects/mayara-anthos/locations/global/operations/operation-1587559773686-5a3e0905ecba1-11b83822-50d068aa
+	//   ]
+	 
 	if result["done"] == true {
 		return nil
 	}
-	return fmt.Errorf("not done")
+
+	return fmt.Errorf("Failed to check operation: %v", result)
 }
 
 // ValidateExclusivity checks the cluster exclusivity against the API
@@ -254,7 +268,7 @@ func (c *Client) ValidateExclusivity(ctx context.Context) error {
 	// Create the url parameters
 	u, err := url.Parse(APIURL)
 	if err != nil {
-		return retry.Unrecoverable(fmt.Errorf("Parsing %v url: %w", APIURL, err))
+		return fmt.Errorf("Parsing %v url: %w", APIURL, err)
 	}
 	q := u.Query()
 	q.Set("crManifest", c.K8S.CRManifest)
@@ -267,22 +281,46 @@ func (c *Client) ValidateExclusivity(ctx context.Context) error {
 		return fmt.Errorf("get request: %w", err)
 	}
 	defer response.Body.Close()
+
+	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
+	if !statusOK {
+		return fmt.Errorf("Bad status code: %v", response.Body)
+	}
+
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return fmt.Errorf("reading get request body: %w", err)
 	}
-	//DELETE ME
-	return fmt.Errorf("%v", string(body))
-
-	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
-	if !statusOK {
-		return fmt.Errorf("Bad status code: %v", string(body))
-	}
-
-	err = json.Unmarshal(body, &c.Resource)
+	var result GRCPResponse
+	err = json.Unmarshal(body, &result)
 	if err != nil {
-		return fmt.Errorf("un-marshaling request body: %w", err)
+		return fmt.Errorf("json Un-marshaling body: %w", err)
 	}
 
-	return fmt.Errorf("Not an error: %v", string(body))
+	// 5 == NOT_FOUND in gRCP codes, see below.
+	// We need to be in status NOT_FOUND to validate the exclusivity
+	if result.Status.Code != 5 {
+		return fmt.Errorf("%v", result.Status.Message)
+	}
+
+	return nil
+}
+
+// GRCPResponse follows the https://cloud.google.com/apis/design/errors
+// Code must be one of the following
+// https://github.com/googleapis/googleapis/blob/master/google/rpc/code.proto
+type GRCPResponse struct {
+	Status GRCPResponseStatus `json:"status"`
+}
+
+// GRCPResponseStatus is the inner GRCPResponse struct
+type GRCPResponseStatus struct {
+	// Code contains the validation result. As such,
+	// * OK means that exclusivity may be obtained if the manifest produced by
+	// GenerateExclusivityManifest can successfully be applied.
+	// * ALREADY_EXISTS means that the Membership CRD is already owned by another
+	// Hub. See status.message for more information when this occurs
+	Code int32 `json:"code"`
+	Message string `json:"message"`
+	Details map[string]interface{} `json:"details"`
 }
