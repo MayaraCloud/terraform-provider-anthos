@@ -44,7 +44,20 @@ func CreateMembership(project string, membershipID string, description string, g
 	client.Resource.ExternalID = externalID
 	client.Resource.Endpoint.GKECluster.ResourceLink = gkeClusterSelfLink
 	client.K8S.CRManifest = membershipManifest
-	return client.CreateMembership(ctx)
+
+	// Create the membership
+	err = client.CreateMembership(ctx)
+	if err != nil {
+		return fmt.Errorf("Creating membership membership: %w", err)
+	}
+
+	// Get membership info after creation, just to double check that all went fine
+	err = client.GetMembership(ctx, membershipID, false)	
+	if err != nil {
+		return fmt.Errorf("Checking getting membership info after creation: %w", err)
+	}
+
+	return nil
 }
 
 // DeleteMembership deletes a membership GKEHub resource 
