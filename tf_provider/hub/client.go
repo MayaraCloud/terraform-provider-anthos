@@ -243,19 +243,6 @@ func (c *Client) CheckOperation(ctx context.Context, operationName string) error
 		return retry.Unrecoverable(fmt.Errorf("Calling DecodeHTTPResult: %w", err))
 	}
 
-	// Example of server response
-	//Decoded request body map[
- 	//   done:false
- 	//   metadata:map[
- 	//       @type:type.googleapis.com/google.cloud.common.OperationMetadata
- 	//       apiVersion:v1
- 	//       cancelRequested:false
- 	//       createTime:2020-04-22T12:49:33.864009221Z
- 	//       target:projects/mayara-anthos/locations/global/memberships/mayara-fake
- 	//       verb:create]
- 	//   name:projects/mayara-anthos/locations/global/operations/operation-1587559773686-5a3e0905ecba1-11b83822-50d068aa
-	//   ]
-	 
 	if result["done"] == true {
 		return nil
 	}
