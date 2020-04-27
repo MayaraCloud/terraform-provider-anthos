@@ -32,10 +32,10 @@ func CreateMembership(project string, membershipID string, description string, g
 	if err != nil {
 		return fmt.Errorf("Getting new client: %w", err)
 	}
-	// Check if membership does not already exists
+	// Check if membership does not already exist
 	err = client.GetMembership(ctx, membershipID, true)	
 	if err != nil {
-		return fmt.Errorf("Checking if membership exists: %w", err)
+		return fmt.Errorf("Checking if membership does not exist: %w", err)
 	}
 
 	// Populate the membership resource fields with the parameters
@@ -47,17 +47,29 @@ func CreateMembership(project string, membershipID string, description string, g
 	return client.CreateMembership(ctx)
 }
 
-// DeleteMembership creates a membership GKEHub resource 
+// DeleteMembership deletes a membership GKEHub resource 
 func DeleteMembership(project string, membershipID string, description string, gkeClusterSelfLink string, externalID string, issuerURL string, membershipManifest string) error {
 	client, err := NewClient(ctx, project)
 	if err != nil {
 		return fmt.Errorf("Getting new client: %w", err)
 	}
-	// Check if membership does not already exists
-	err = client.GetMembership(ctx, membershipID, true)	
+	// Get membership info
+	err = client.GetMembership(ctx, membershipID, false)	
 	if err != nil {
-		return fmt.Errorf("Checking if membership exists: %w", err)
+		return fmt.Errorf("Checking getting membership info: %w", err)
 	}
 
-	return client.DeleteMembership(ctx)
+	// Delete the membership
+	err = client.DeleteMembership(ctx)
+	if err != nil {
+		return fmt.Errorf("Deleting membership: %w", err)
+	}
+
+	// Check if membership does not exist anymore
+	err = client.GetMembership(ctx, membershipID, true)	
+	if err != nil {
+		return fmt.Errorf("Checking if membership does not exist: %w", err)
+	}
+
+	return nil
 }
