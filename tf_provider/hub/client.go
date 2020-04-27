@@ -13,6 +13,7 @@ import (
 	"google.golang.org/api/option"
 	htransport "google.golang.org/api/transport/http"
 	"github.com/avast/retry-go"
+    "gitlab.com/mayara/private/anthos/k8s"
 )
 
 const prodAddr = "https://gkehub.googleapis.com/"
@@ -38,6 +39,8 @@ type Client struct {
 type K8S struct {
 	CRManifest string
 	CRDManifest string
+	Auth k8s.Auth // K8s auth info
+	UUID string // default namespace UID
 }
 
 // Service type contains the http client and its context info
@@ -60,8 +63,9 @@ func GetOptionsWithCreds(project string) (option.ClientOption, error) {
 	return options, nil
 }
 
+
 // NewClient creates a GKE hub client
-func NewClient(ctx context.Context, projectID string) (*Client, error){
+func NewClient(ctx context.Context, projectID string, k8sAuth k8s.Auth) (*Client, error){
 	options, err := GetOptionsWithCreds(projectID)
 	if err != nil {
 		return nil, fmt.Errorf("Getting options with credentials: %w", err)
@@ -86,16 +90,50 @@ func NewClient(ctx context.Context, projectID string) (*Client, error){
 		BasePath: endpoint,
 	}
 
-	//Populate the Client object itself
+	// Populate the K8S object
+	k := K8S{
+		Auth: k8sAuth,
+	}
+	// Populate the Client object itself
 	c := &Client{
 		projectID: projectID,
 		svc: s,
 		//FIXME not sure this should be hardcoded, but the api works as global, it will probably change in the future
 		location: "global",
+		K8S: k,
 	}
 
 	return c, nil
 }
+
+// GetKubeUUID grabs the namespace UID of the K8s cluster 
+func (c *Client) GetKubeUUID() error {
+    kubeUUID, err := k8s.GetK8sClusterUUID(c.K8S.Auth)
+    if err != nil {
+        return fmt.Errorf("Getting uuid: %w", err)
+	}
+	c.K8S.UUID = kubeUUID
+	return nil
+}
+
+// GetKubeArtifacts grabs the K8s CRD and manifest resource if existing
+func (c *Client) GetKubeArtifacts() error {
+    membershipCRD, err := k8s.GetMembershipCR(c.K8S.Auth)
+    if err != nil {
+        return fmt.Errorf("Getting membership k8s crd: %w", err)
+	}
+	if membershipCRD != "" {
+		membershipCR, err := k8s.GetMembershipCR(c.K8S.Auth)
+		if err != nil {
+		    return fmt.Errorf("Getting membership k8s resource: %w", err)
+		}
+		c.K8S.CRManifest = membershipCR
+	}
+	c.K8S.CRDManifest = membershipCRD
+
+	return nil
+}
+
 
 // GetMembership gets details of a hub membership.
 // This method also initializes/updates the client component
@@ -311,6 +349,51 @@ type GRCPResponseStatus struct {
 	Code int32 `json:"code"`
 	Message string `json:"message"`
 	Details map[string]interface{} `json:"details"`
+}
+
+// GenerateExclusivity checks the cluster exclusivity against the API
+func (c *Client) GenerateExclusivity(ctx context.Context) error {
+	// Call the gkehub api
+	APIURL := prodAddr + "v1beta1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + c.Resource.Name + ":generateExclusivity"
+
+	// Create the url parameters
+	u, err := url.Parse(APIURL)
+	if err != nil {
+		return fmt.Errorf("Parsing %v url: %w", APIURL, err)
+	}
+	q := u.Query()
+	q.Set("crManifest", c.K8S.CRManifest)
+	q.Set("crdManifest", c.K8S.CRDManifest)
+	q.Set("alt", "json")
+	u.RawQuery = q.Encode()
+	// Go ahead with the request
+	response, err := c.svc.client.Get(u.String())
+	if err != nil {
+		return fmt.Errorf("get request: %w", err)
+	}
+	defer response.Body.Close()
+
+	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
+	if !statusOK {
+		return fmt.Errorf("Bad status code: %v", response.Body)
+	}
+
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("reading get request body: %w", err)
+	}
+	var result GRCPResponse
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return fmt.Errorf("json Un-marshaling body: %w", err)
+	}
+
+	// 0 == OK in gRCP codes, see below.
+	if result.Status.Code != 0 {
+		return fmt.Errorf("%v", result.Status.Message)
+	}
+
+	return nil
 }
 
 // DeleteMembership deletes a hub membership

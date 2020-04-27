@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"gitlab.com/mayara/private/anthos/k8s"
 	"fmt"
 	"context"
 )
@@ -18,8 +19,8 @@ var ctx = context.Background()
 
 
 // GetMembership gets a Membership resource from the GKEHub API
-func GetMembership(project string, membershipID string, description string, gkeClusterSelfLink string, externalID string, issuerURL string) error {
-	client, err := NewClient(ctx, project)
+func GetMembership(project string, membershipID string, description string, gkeClusterSelfLink string, issuerURL string, k8sAuth k8s.Auth) error {
+	client, err := NewClient(ctx, project, k8sAuth)
 	if err != nil {
 		return fmt.Errorf("Getting new client: %w", err)
 	}
@@ -27,42 +28,52 @@ func GetMembership(project string, membershipID string, description string, gkeC
 }
 
 // CreateMembership creates a membership GKEHub resource 
-func CreateMembership(project string, membershipID string, description string, gkeClusterSelfLink string, externalID string, issuerURL string, membershipManifest string) error {
-	client, err := NewClient(ctx, project)
+func CreateMembership(project string, membershipID string, description string, gkeClusterSelfLink string, issuerURL string, k8sAuth k8s.Auth) (membershipUUID string, err error) {
+	client, err := NewClient(ctx, project, k8sAuth)
 	if err != nil {
-		return fmt.Errorf("Getting new client: %w", err)
+		return "", fmt.Errorf("Getting new client: %w", err)
 	}
+	
+	// Get the K8s default namespace UID
+	err = client.GetKubeUUID()
+	if err != nil {
+		return "", fmt.Errorf("Getting Kube UID: %w", err)
+	}
+
+	err = client.GetKubeArtifacts()
+	if err != nil {
+		return "", fmt.Errorf("Getting Kube custom artifacts: %w", err)
+	}
+
 	// Check if membership does not already exist
 	err = client.GetMembership(ctx, membershipID, true)	
 	if err != nil {
-		return fmt.Errorf("Checking if membership does not exist: %w", err)
+		return "", fmt.Errorf("Checking if membership does not exist: %w", err)
 	}
-
+	
 	// Populate the membership resource fields with the parameters
 	client.Resource.Name = membershipID
 	client.Resource.Description = membershipID
-	client.Resource.ExternalID = externalID
 	client.Resource.Endpoint.GKECluster.ResourceLink = gkeClusterSelfLink
-	client.K8S.CRManifest = membershipManifest
 
 	// Create the membership
 	err = client.CreateMembership(ctx)
 	if err != nil {
-		return fmt.Errorf("Creating membership membership: %w", err)
+		return "", fmt.Errorf("Creating membership membership: %w", err)
 	}
 
 	// Get membership info after creation, just to double check that all went fine
 	err = client.GetMembership(ctx, membershipID, false)	
 	if err != nil {
-		return fmt.Errorf("Checking getting membership info after creation: %w", err)
+		return "", fmt.Errorf("Checking getting membership info after creation: %w", err)
 	}
 
-	return nil
+	return client.K8S.UUID, nil
 }
 
 // DeleteMembership deletes a membership GKEHub resource 
-func DeleteMembership(project string, membershipID string, description string, gkeClusterSelfLink string, externalID string, issuerURL string, membershipManifest string) error {
-	client, err := NewClient(ctx, project)
+func DeleteMembership(project string, membershipID string, description string, gkeClusterSelfLink string, issuerURL string, membershipManifest string, k8sAuth k8s.Auth) error {
+	client, err := NewClient(ctx, project, k8sAuth)
 	if err != nil {
 		return fmt.Errorf("Getting new client: %w", err)
 	}

@@ -5,17 +5,22 @@ import (
 	"strings"
 	"os"
 	"path/filepath"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // This is needed for gcp auth
 )
 
+// Auth contains authentication info for kubernetes
+type Auth struct {
+	KubeConfigFile string
+	KubeContext string
+}
+
 // KubeClientSet initializes the kubernetes API client
-func KubeClientSet(d *schema.ResourceData) (*kubernetes.Clientset, error) {
-	kubeConfig := d.Get("k8s_config_file").(string)
-	kubeContext := d.Get("k8s_context").(string)
+func KubeClientSet(auth Auth) (*kubernetes.Clientset, error) {
+	kubeConfig := auth.KubeConfigFile
+	kubeContext := auth.KubeContext
 
 	if home := homeDir(); home != "" && kubeConfig == "" {
 		kubeConfig = filepath.Join(home, ".kube", "config")
@@ -58,8 +63,8 @@ func homeDir() string {
 }
 
 // GetK8sClusterUUID returns the kube-system namespace UID
-func GetK8sClusterUUID(d *schema.ResourceData) (string, error) {
-	kubeClient, err := KubeClientSet(d)
+func GetK8sClusterUUID(auth Auth) (string, error) {
+	kubeClient, err := KubeClientSet(auth)
 	if err != nil {
 		return "", fmt.Errorf("Initializing Kube clientset: %w", err)
 	}
@@ -73,18 +78,10 @@ func GetK8sClusterUUID(d *schema.ResourceData) (string, error) {
 }
 
 // GetMembershipCR get the Membership CR
-func GetMembershipCR(d *schema.ResourceData) (string, error) {
-	kubeClient, err := KubeClientSet(d)
+func GetMembershipCR(auth Auth) (string, error) {
+	kubeClient, err := KubeClientSet(auth)
 	if err != nil {
 		return "", fmt.Errorf("Initializing Kube clientset: %w", err)
-	}
-	_, err = kubeClient.RESTClient().Get().AbsPath("apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/memberships.hub.gke.io").DoRaw()
-	if err != nil {
-		// If there is no Membership CRD we just return an empty string
-		if strings.Contains(err.Error(), "the server could not find the requested resource") {		
-			return "", nil
-		}
-		return "", fmt.Errorf("Getting the membership CRD object: %w", err)
 	}
 	object, err := kubeClient.RESTClient().Get().AbsPath("apis/hub.gke.io/v1/memberships/membership").DoRaw()
 	if err != nil {
@@ -94,13 +91,17 @@ func GetMembershipCR(d *schema.ResourceData) (string, error) {
 }
 
 // GetMembershipCRD get the Membership CRD
-func GetMembershipCRD(d *schema.ResourceData) (string, error) {
-	kubeClient, err := KubeClientSet(d)
+func GetMembershipCRD(auth Auth) (string, error) {
+	kubeClient, err := KubeClientSet(auth)
 	if err != nil {
 		return "", fmt.Errorf("Initializing Kube clientset: %w", err)
 	}
 	object, err := kubeClient.RESTClient().Get().AbsPath("apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/memberships.hub.gke.io").DoRaw()
 	if err != nil {
+		// If there is no Membership CRD we just return an empty string
+		if strings.Contains(err.Error(), "the server could not find the requested resource") {		
+			return "", nil
+		}
 		return "", fmt.Errorf("Getting the membership CRD object: %w", err)
 	}
 	return string(string(object)), nil
