@@ -137,9 +137,9 @@ func (c *Client) GetKubeArtifacts() error {
 
 // GetMembership gets details of a hub membership.
 // This method also initializes/updates the client component
-func (c *Client) GetMembership(ctx context.Context, name string, checkNotExisting bool) error {
+func (c *Client) GetMembership(ctx context.Context, membershipID string, checkNotExisting bool) error {
 	// Call the gkehub api
-	APIURL := prodAddr + "v1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + name
+	APIURL := prodAddr + "v1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + membershipID
 	response, err := c.svc.client.Get(APIURL)
 	if err != nil {
 		return fmt.Errorf("get request: %w", err)
@@ -176,16 +176,16 @@ func (c *Client) GetMembership(ctx context.Context, name string, checkNotExistin
 // CreateMembership creates a hub membership
 // The client object should already contain the
 // updated resource component updated in another method
-func (c *Client) CreateMembership(ctx context.Context) error {
+func (c *Client) CreateMembership(ctx context.Context, membershipID string) error {
 	// Validate exclusivity if the cluster has a manifest CRD present
 	if c.K8S.CRManifest != "" {
-		err := c.ValidateExclusivity(ctx)
+		err := c.ValidateExclusivity(ctx, membershipID)
 		if err != nil {
 			return fmt.Errorf("Validating exclusivity: %w", err)
 		}
 	}
 	// Calling the creation API
-	createResponse, err := c.CallCreateMembershipAPI(ctx)
+	createResponse, err := c.CallCreateMembershipAPI(ctx, membershipID)
 	if err != nil {
 		return fmt.Errorf("Calling CallCreateMembershipAPI: %w", err)
 	}
@@ -206,14 +206,14 @@ func (c *Client) CreateMembership(ctx context.Context) error {
 // CallCreateMembershipAPI creates a hub membership
 // The client object should already contain the
 // updated resource component updated in another method
-func (c *Client) CallCreateMembershipAPI(ctx context.Context) (HTTPResult, error) {
+func (c *Client) CallCreateMembershipAPI(ctx context.Context, membershipID string) (HTTPResult, error) {
 	// Create the json POST request body
 	var rawBody struct{
 		Description string `json:"description"`
 		ExternalID string	`json:"externalId"`
 	}
 	rawBody.Description = c.Resource.Description
-	rawBody.ExternalID = c.Resource.ExternalID
+	rawBody.ExternalID = c.K8S.UUID
 
 	body , err := json.Marshal(rawBody)
 	if err != nil {
@@ -227,7 +227,7 @@ func (c *Client) CallCreateMembershipAPI(ctx context.Context) (HTTPResult, error
 	}
 	q := u.Query()
 	q.Set("alt", "json")
-	q.Set("membershipId", c.Resource.Name)
+	q.Set("membershipId", membershipID)
 	u.RawQuery = q.Encode()
 	// Go ahead with the request
 	response, err := c.svc.client.Post(u.String(), "application/json", bytes.NewBuffer(body))
@@ -289,7 +289,7 @@ func (c *Client) CheckOperation(ctx context.Context, operationName string) error
 }
 
 // ValidateExclusivity checks the cluster exclusivity against the API
-func (c *Client) ValidateExclusivity(ctx context.Context) error {
+func (c *Client) ValidateExclusivity(ctx context.Context, membershipID string) error {
 	// Call the gkehub api
 	APIURL := prodAddr + "v1beta1/projects/" + c.projectID + "/locations/" + c.location + "/memberships:validateExclusivity"
 	// Create the url parameters
@@ -299,7 +299,7 @@ func (c *Client) ValidateExclusivity(ctx context.Context) error {
 	}
 	q := u.Query()
 	q.Set("crManifest", c.K8S.CRManifest)
-	q.Set("intendedMembership", c.Resource.Name)
+	q.Set("intendedMembership", membershipID)
 	q.Set("alt", "json")
 	u.RawQuery = q.Encode()
 	// Go ahead with the request
@@ -352,9 +352,9 @@ type GRCPResponseStatus struct {
 }
 
 // GenerateExclusivity checks the cluster exclusivity against the API
-func (c *Client) GenerateExclusivity(ctx context.Context) error {
+func (c *Client) GenerateExclusivity(ctx context.Context, membershipID string) error {
 	// Call the gkehub api
-	APIURL := prodAddr + "v1beta1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + c.Resource.Name + ":generateExclusivity"
+	APIURL := prodAddr + "v1beta1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + membershipID + ":generateExclusivity"
 
 	// Create the url parameters
 	u, err := url.Parse(APIURL)
@@ -400,34 +400,12 @@ func (c *Client) GenerateExclusivity(ctx context.Context) error {
 // The client object should already contain the
 // updated resource component updated in another method
 func (c *Client) DeleteMembership(ctx context.Context) error {
-	// Calling the deletion API
-	deleteResponse, err := c.CallDeleteMembershipAPI(ctx)
-	if err != nil {
-		return fmt.Errorf("Calling CallDeleteMembershipAPI: %w", err)
-	}
-	
-	// Wait until we get an ok from CheckOperation
-	retry.Attempts(60)
-	err = retry.Do(
-		func() error {
-			return c.CheckOperation(ctx, deleteResponse["name"].(string))
-		})
-
-	if err != nil {
-		return fmt.Errorf("Retry checking DeleteMembership operation: %w", err)
-	}
-	return nil
-}
-
-// CallDeleteMembershipAPI deletes a hub membership
-// The client object should already contain the
-// updated resource component updated in another method
-func (c *Client) CallDeleteMembershipAPI(ctx context.Context) (HTTPResult, error) {
 	// Delete a url object to append parameters to it
-	APIURL := prodAddr + "v1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + c.Resource.Name
+	APIURL := prodAddr + "v1/" + c.Resource.Name
+
 	u, err := url.Parse(APIURL)
 	if err != nil {
-		return nil, fmt.Errorf("Parsing %v url: %w", APIURL, err)
+		return fmt.Errorf("Parsing %v url: %w", APIURL, err)
 	}
 	q := u.Query()
 	q.Set("alt", "json")
@@ -435,13 +413,23 @@ func (c *Client) CallDeleteMembershipAPI(ctx context.Context) (HTTPResult, error
 	// Go ahead with the request
 	req, err := http.NewRequest("DELETE", u.String(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("Creating Delete request: %w", err)
+		return fmt.Errorf("Creating Delete request: %w", err)
 	}
 	response, err := c.svc.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("Sending DELETE request: %w", err)
+		return fmt.Errorf("Sending DELETE request: %w", err)
 	}
 	defer response.Body.Close()
 
-	return DecodeHTTPResult(response.Body)
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("reading get request body: %w", err)
+	}
+
+	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
+	if !statusOK {
+		return fmt.Errorf("Bad %v status code: %v", response.StatusCode, string(body))
+	}
+
+	return nil
 }

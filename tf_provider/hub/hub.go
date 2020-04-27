@@ -52,12 +52,10 @@ func CreateMembership(project string, membershipID string, description string, g
 	}
 	
 	// Populate the membership resource fields with the parameters
-	client.Resource.Name = membershipID
 	client.Resource.Description = membershipID
 	client.Resource.Endpoint.GKECluster.ResourceLink = gkeClusterSelfLink
-
 	// Create the membership
-	err = client.CreateMembership(ctx)
+	err = client.CreateMembership(ctx, membershipID)
 	if err != nil {
 		return "", fmt.Errorf("Creating membership membership: %w", err)
 	}
@@ -72,7 +70,7 @@ func CreateMembership(project string, membershipID string, description string, g
 }
 
 // DeleteMembership deletes a membership GKEHub resource 
-func DeleteMembership(project string, membershipID string, description string, gkeClusterSelfLink string, issuerURL string, membershipManifest string, k8sAuth k8s.Auth) error {
+func DeleteMembership(project string, membershipID string, description string, gkeClusterSelfLink string, issuerURL string, k8sAuth k8s.Auth) error {
 	client, err := NewClient(ctx, project, k8sAuth)
 	if err != nil {
 		return fmt.Errorf("Getting new client: %w", err)
@@ -80,7 +78,7 @@ func DeleteMembership(project string, membershipID string, description string, g
 	// Get membership info
 	err = client.GetMembership(ctx, membershipID, false)	
 	if err != nil {
-		return fmt.Errorf("Checking getting membership info: %w", err)
+		return fmt.Errorf("Checking membership info: %w", err)
 	}
 
 	// Delete the membership

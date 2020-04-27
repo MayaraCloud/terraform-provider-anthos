@@ -1,7 +1,6 @@
 package hub
 
 import (
-	googletime "google.golang.org/genproto/googleapis/type/datetime"
 	"time"
 )
 
@@ -33,13 +32,13 @@ type Resource struct {
 	Authority Authority `json:"authority"`
 
 	// Output only. Timestamp for when the Membership was created.
-	CreateTime googletime.DateTime `json:"createTime"`
+	CreateTime time.Time `json:"createTime"`
 
 	// Output only. Timestamp for when the Membership was last updated.
-	UpdateTime googletime.DateTime `json:"updateTime"`
+	UpdateTime time.Time `json:"updateTime"`
 
 	//Output only. Timestamp for when the Membership was deleted.
-	DeleteTime googletime.DateTime `json:"deleteTime"`
+	DeleteTime time.Time `json:"deleteTime"`
 	
 	// An externally-generated and managed ID for this Membership.
 	// This ID may still be modified after creation but it is not

@@ -72,5 +72,13 @@ func resourceMembershipUpdate(d *schema.ResourceData, m interface{}) error {
 }
 
 func resourceMembershipDelete(d *schema.ResourceData, m interface{}) error {
+    var k8sAuth k8s.Auth
+    
+    k8sAuth.KubeConfigFile = d.Get("k8s_config_file").(string)
+    k8sAuth.KubeContext = d.Get("k8s_context").(string)
+    err := hub.DeleteMembership(d.Get("hub_project_id").(string), d.Get("cluster_name").(string), "", d.Get("description").(string), "", k8sAuth)
+    if err != nil {
+        return fmt.Errorf("Deleting Membership: %w", err)
+    }
 	return nil
 }
