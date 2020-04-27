@@ -340,32 +340,23 @@ func (c *Client) DeleteMembership(ctx context.Context) error {
 // The client object should already contain the
 // updated resource component updated in another method
 func (c *Client) CallDeleteMembershipAPI(ctx context.Context) (HTTPResult, error) {
-	// Delete the json POST request body
-	var rawBody struct{
-		Description string `json:"description"`
-		ExternalID string	`json:"externalId"`
-	}
-	rawBody.Description = c.Resource.Description
-	rawBody.ExternalID = c.Resource.ExternalID
-
-	body , err := json.Marshal(rawBody)
-	if err != nil {
-		return nil, fmt.Errorf("Marshaling create request body: %w", err)
-	}
 	// Delete a url object to append parameters to it
-	APIURL := prodAddr + "v1/projects/" + c.projectID + "/locations/" + c.location + "/memberships"
+	APIURL := prodAddr + "v1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + c.Resource.Name
 	u, err := url.Parse(APIURL)
 	if err != nil {
 		return nil, fmt.Errorf("Parsing %v url: %w", APIURL, err)
 	}
 	q := u.Query()
 	q.Set("alt", "json")
-	q.Set("membershipId", c.Resource.Name)
 	u.RawQuery = q.Encode()
 	// Go ahead with the request
-	response, err := c.svc.client.Post(u.String(), "application/json", bytes.NewBuffer(body))
+	req, err := http.NewRequest("DELETE", u.String(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("create POST request: %w", err)
+		return nil, fmt.Errorf("Creating Delete request: %w", err)
+	}
+	response, err := c.svc.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Sending DELETE request: %w", err)
 	}
 	defer response.Body.Close()
 
