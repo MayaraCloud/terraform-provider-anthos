@@ -135,7 +135,7 @@ func (c *Client) GetMembership(ctx context.Context, name string, checkNotExistin
 	return nil
 }
 
-// CreateMembership updates a hub membership
+// CreateMembership creates a hub membership
 // The client object should already contain the
 // updated resource component updated in another method
 func (c *Client) CreateMembership(ctx context.Context) error {
@@ -165,7 +165,7 @@ func (c *Client) CreateMembership(ctx context.Context) error {
 	return nil
 }
 
-// CallCreateMembershipAPI updates a hub membership
+// CallCreateMembershipAPI creates a hub membership
 // The client object should already contain the
 // updated resource component updated in another method
 func (c *Client) CallCreateMembershipAPI(ctx context.Context) (HTTPResult, error) {
@@ -324,4 +324,63 @@ type GRCPResponseStatus struct {
 	Code int32 `json:"code"`
 	Message string `json:"message"`
 	Details map[string]interface{} `json:"details"`
+}
+
+// DeleteMembership deletes a hub membership
+// The client object should already contain the
+// updated resource component updated in another method
+func (c *Client) DeleteMembership(ctx context.Context) error {
+	// Calling the deletion API
+	deleteResponse, err := c.CallDeleteMembershipAPI(ctx)
+	if err != nil {
+		return fmt.Errorf("Calling CallDeleteMembershipAPI: %w", err)
+	}
+	
+	// Wait until we get an ok from CheckOperation
+	retry.Attempts(60)
+	err = retry.Do(
+		func() error {
+			return c.CheckOperation(ctx, deleteResponse["name"].(string))
+		})
+
+	if err != nil {
+		return fmt.Errorf("Retry checking DeleteMembership operation: %w", err)
+	}
+	return nil
+}
+
+// CallDeleteMembershipAPI deletes a hub membership
+// The client object should already contain the
+// updated resource component updated in another method
+func (c *Client) CallDeleteMembershipAPI(ctx context.Context) (HTTPResult, error) {
+	// Delete the json POST request body
+	var rawBody struct{
+		Description string `json:"description"`
+		ExternalID string	`json:"externalId"`
+	}
+	rawBody.Description = c.Resource.Description
+	rawBody.ExternalID = c.Resource.ExternalID
+
+	body , err := json.Marshal(rawBody)
+	if err != nil {
+		return nil, fmt.Errorf("Marshaling create request body: %w", err)
+	}
+	// Delete a url object to append parameters to it
+	APIURL := prodAddr + "v1/projects/" + c.projectID + "/locations/" + c.location + "/memberships"
+	u, err := url.Parse(APIURL)
+	if err != nil {
+		return nil, fmt.Errorf("Parsing %v url: %w", APIURL, err)
+	}
+	q := u.Query()
+	q.Set("alt", "json")
+	q.Set("membershipId", c.Resource.Name)
+	u.RawQuery = q.Encode()
+	// Go ahead with the request
+	response, err := c.svc.client.Post(u.String(), "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		return nil, fmt.Errorf("create POST request: %w", err)
+	}
+	defer response.Body.Close()
+
+	return DecodeHTTPResult(response.Body)
 }
