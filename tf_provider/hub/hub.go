@@ -4,6 +4,7 @@ import (
 	"gitlab.com/mayara/private/anthos/k8s"
 	"fmt"
 	"context"
+	"github.com/avast/retry-go"
 )
 
 // ParentRef is the resource name of the parent collection of a membership.
@@ -87,10 +88,19 @@ func DeleteMembership(project string, membershipID string, description string, g
 		return fmt.Errorf("Deleting membership: %w", err)
 	}
 
-	// Check if membership does not exist anymore
-	err = client.GetMembership(ctx, membershipID, true)	
+	// Wait until the resource gets deleted
+	retry.Attempts(60)
+	err = retry.Do(
+		func() error {
+			err := client.GetMembership(ctx, membershipID, true)
+			if err != nil && client.Resource.State.Code == "DELETING" {
+				return nil
+			}
+			return retry.Unrecoverable(err)
+		})
+
 	if err != nil {
-		return fmt.Errorf("Checking if membership does not exist: %w", err)
+		return fmt.Errorf("Waiting for resource to me deleted: %w", err)
 	}
 
 	return nil

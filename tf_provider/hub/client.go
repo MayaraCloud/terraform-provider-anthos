@@ -152,10 +152,6 @@ func (c *Client) GetMembership(ctx context.Context, membershipID string, checkNo
 
 	// If we are checking if the resource does not exist
 	// we need a 404 here
-	if checkNotExisting && response.StatusCode != 404 {
-		return fmt.Errorf("The resource already exists in the Hub: %v", string(body))
-	}
-
 	if checkNotExisting && response.StatusCode == 404 {
 		return nil
 	}
@@ -169,6 +165,11 @@ func (c *Client) GetMembership(ctx context.Context, membershipID string, checkNo
 	if err != nil {
 		return fmt.Errorf("un-marshaling request body: %w", err)
 	}
+	
+	if checkNotExisting && response.StatusCode != 404 {
+		return fmt.Errorf("The resource already exists in the Hub: %v", string(body))
+	}
+
 
 	return nil
 }
