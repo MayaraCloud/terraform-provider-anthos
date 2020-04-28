@@ -2,6 +2,10 @@
 terraform-provider-anthos
 test
 
+# Go modules files
+go.sum
+go.mod
+
 # Terraform files
 .terraform
 terraform.tfstate*
@@ -9,3 +13,5 @@ crash.log
 
 # :)
 notes.txt
+
+
