@@ -12,6 +12,7 @@ import (
 	k8sTypes "k8s.io/apimachinery/pkg/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // This is needed for gcp auth
+    "gitlab.com/mayara/private/anthos/debug"
 )
 
 // Auth contains authentication info for kubernetes
@@ -132,18 +133,21 @@ func InstallExclusivityManifests(ctx context.Context, auth Auth, CRDManifest str
 		return fmt.Errorf("Initializing Kube clientset: %w", err)
 	}
 	if CRDManifest != "" {
+		debug.GoLog("InstallExclusivityManifests: installing CRD manifest")
 		err = installRawArtifact(ctx, kubeClient, CRDAbspath, CRDManifest)
 		if err != nil {
 			return fmt.Errorf("Installing CRD: %w", err)
 		}
 	}
 	if CRManifest != "" {
+		debug.GoLog("InstallExclusivityManifests: installing CR manifest")
 		err = installRawArtifact(ctx, kubeClient, CRAbspath, CRManifest)
 		if err != nil {
 			return fmt.Errorf("Installing CR: %w", err)
 		}
 	}
 
+	debug.GoLog("InstallExclusivityManifests: received empty artifacts")
 	return nil
 }
 
@@ -153,6 +157,7 @@ func installRawArtifact(ctx context.Context, kubeClient *kubernetes.Clientset, a
 	if err != nil {
 		// If there is no artifact CREATE, otherwise, PATCH
 		if strings.Contains(err.Error(), "the server could not find the requested resource") {		
+			debug.GoLog("installRawArtifact: installing the artifact " + absPath)
 			_, err = kubeClient.RESTClient().Post().Body([]byte(artifact)).AbsPath(absPath).DoRaw(ctx)
 			if err != nil {
 				return fmt.Errorf("Error CREATING %v: %w", absPath, err)
@@ -161,6 +166,7 @@ func installRawArtifact(ctx context.Context, kubeClient *kubernetes.Clientset, a
 		return fmt.Errorf("Getting %v: %w", absPath, err)
 	}
 	
+	debug.GoLog("installRawArtifact: updating the artifact " + absPath)
 	_, err = kubeClient.RESTClient().Patch(k8sTypes.ApplyPatchType).Body([]byte(artifact)).AbsPath(absPath).DoRaw(ctx)
 	if err != nil {
 		return fmt.Errorf("Error PATCHING %v: %w", absPath, err)
@@ -192,6 +198,7 @@ func DeleteArtifacts(ctx context.Context, auth Auth) error {
 			return fmt.Errorf("Error DELETING %v: %w", artifact, err)
 		}
 	}
-
+	
 	return nil
 }
+

@@ -23,4 +23,4 @@ build:
 	go build -o terraform-provider-anthos
 
 apply:
-	terraform apply /tmp/tf.plan
+	GO_DEBUG=true terraform apply /tmp/tf.plan

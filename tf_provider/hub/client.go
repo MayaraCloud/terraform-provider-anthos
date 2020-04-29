@@ -14,6 +14,7 @@ import (
 	htransport "google.golang.org/api/transport/http"
 	"github.com/avast/retry-go"
     "gitlab.com/mayara/private/anthos/k8s"
+    "gitlab.com/mayara/private/anthos/debug"
 )
 
 const prodAddr = "https://gkehub.googleapis.com/"
@@ -380,11 +381,12 @@ func (c *Client) GenerateExclusivity(ctx context.Context, membershipID string) e
 		return fmt.Errorf("reading get request body: %w", err)
 	}
 
+	debug.GoLog("Generate manifest response: " + string(body))
+
 	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
 	if !statusOK {
 		return fmt.Errorf("Bad status code: %v", string(body))
 	}
-
 
 	type manifestResponse struct {
 		crdManifest string
