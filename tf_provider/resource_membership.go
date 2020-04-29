@@ -24,6 +24,7 @@ func resourceMembership() *schema.Resource {
                 Type:     schema.TypeString,
                 Required: true,
                 Description: "Kubernetes cluster to register, this will be the cluster name in the hub",
+                ForceNew: true,
             },
             "description": &schema.Schema{
                 Type:     schema.TypeString,
@@ -51,7 +52,7 @@ func resourceMembership() *schema.Resource {
                 Default: true,
                 Required: false,
                 Optional: true,
-                Description: "When deleting the cluster from the Hub, delete also the artifacts installed in the Kubernetes cluster",
+                Description: "If true, when deleting the cluster from the Hub, delete also the artifacts installed in the Kubernetes cluster",
             },
         },
     }
@@ -59,7 +60,7 @@ func resourceMembership() *schema.Resource {
 
 func resourceMembershipCreate(d *schema.ResourceData, m interface{}) error {
     var k8sAuth k8s.Auth
-    
+
     k8sAuth.KubeConfigFile = d.Get("k8s_config_file").(string)
     k8sAuth.KubeContext = d.Get("k8s_context").(string)
     clusterUUID, err := hub.CreateMembership(d.Get("hub_project_id").(string), d.Get("cluster_name").(string), "", d.Get("description").(string), "", k8sAuth)
