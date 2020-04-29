@@ -107,8 +107,8 @@ func NewClient(ctx context.Context, projectID string, k8sAuth k8s.Auth) (*Client
 }
 
 // GetKubeUUID grabs the namespace UID of the K8s cluster 
-func (c *Client) GetKubeUUID() error {
-    kubeUUID, err := k8s.GetK8sClusterUUID(c.K8S.Auth)
+func (c *Client) GetKubeUUID(ctx context.Context) error {
+    kubeUUID, err := k8s.GetK8sClusterUUID(ctx, c.K8S.Auth)
     if err != nil {
         return fmt.Errorf("Getting uuid: %w", err)
 	}
@@ -117,13 +117,13 @@ func (c *Client) GetKubeUUID() error {
 }
 
 // GetKubeArtifacts grabs the K8s CRD and manifest resource if existing
-func (c *Client) GetKubeArtifacts() error {
-    membershipCRD, err := k8s.GetMembershipCR(c.K8S.Auth)
+func (c *Client) GetKubeArtifacts(ctx context.Context) error {
+    membershipCRD, err := k8s.GetMembershipCRD(ctx, c.K8S.Auth)
     if err != nil {
         return fmt.Errorf("Getting membership k8s crd: %w", err)
 	}
 	if membershipCRD != "" {
-		membershipCR, err := k8s.GetMembershipCR(c.K8S.Auth)
+		membershipCR, err := k8s.GetMembershipCR(ctx, c.K8S.Auth)
 		if err != nil {
 		    return fmt.Errorf("Getting membership k8s resource: %w", err)
 		}
@@ -165,7 +165,7 @@ func (c *Client) GetMembership(ctx context.Context, membershipID string, checkNo
 	if err != nil {
 		return fmt.Errorf("un-marshaling request body: %w", err)
 	}
-	
+
 	if checkNotExisting && response.StatusCode != 404 {
 		return fmt.Errorf("The resource already exists in the Hub: %v", string(body))
 	}
@@ -355,7 +355,7 @@ type GRCPResponseStatus struct {
 // GenerateExclusivity checks the cluster exclusivity against the API
 func (c *Client) GenerateExclusivity(ctx context.Context, membershipID string) error {
 	// Call the gkehub api
-	APIURL := prodAddr + "v1beta1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + membershipID + ":generateExclusivity"
+	APIURL := prodAddr + "v1beta1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + membershipID + ":generateExclusivityManifest"
 
 	// Create the url parameters
 	u, err := url.Parse(APIURL)
@@ -363,6 +363,7 @@ func (c *Client) GenerateExclusivity(ctx context.Context, membershipID string) e
 		return fmt.Errorf("Parsing %v url: %w", APIURL, err)
 	}
 	q := u.Query()
+	q.Set("name", c.Resource.Name)
 	q.Set("crManifest", c.K8S.CRManifest)
 	q.Set("crdManifest", c.K8S.CRDManifest)
 	q.Set("alt", "json")
@@ -374,25 +375,30 @@ func (c *Client) GenerateExclusivity(ctx context.Context, membershipID string) e
 	}
 	defer response.Body.Close()
 
-	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
-	if !statusOK {
-		return fmt.Errorf("Bad status code: %v", response.Body)
-	}
-
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return fmt.Errorf("reading get request body: %w", err)
 	}
-	var result GRCPResponse
+
+	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
+	if !statusOK {
+		return fmt.Errorf("Bad status code: %v", string(body))
+	}
+
+
+	type manifestResponse struct {
+		crdManifest string
+		crManifest string
+	}
+	var result manifestResponse
 	err = json.Unmarshal(body, &result)
 	if err != nil {
 		return fmt.Errorf("json Un-marshaling body: %w", err)
 	}
 
-	// 0 == OK in gRCP codes, see below.
-	if result.Status.Code != 0 {
-		return fmt.Errorf("%v", result.Status.Message)
-	}
+	// Populate the client with the manifest and CRD from the gkehub API
+	c.K8S.CRDManifest = result.crdManifest
+	c.K8S.CRManifest = result.crManifest
 
 	return nil
 }

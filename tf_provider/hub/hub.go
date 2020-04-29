@@ -36,12 +36,12 @@ func CreateMembership(project string, membershipID string, description string, g
 	}
 	
 	// Get the K8s default namespace UID
-	err = client.GetKubeUUID()
+	err = client.GetKubeUUID(ctx)
 	if err != nil {
 		return "", fmt.Errorf("Getting Kube UID: %w", err)
 	}
 
-	err = client.GetKubeArtifacts()
+	err = client.GetKubeArtifacts(ctx)
 	if err != nil {
 		return "", fmt.Errorf("Getting Kube custom artifacts: %w", err)
 	}
@@ -65,6 +65,18 @@ func CreateMembership(project string, membershipID string, description string, g
 	err = client.GetMembership(ctx, membershipID, false)	
 	if err != nil {
 		return "", fmt.Errorf("Checking getting membership info after creation: %w", err)
+	}
+
+	// Get Kubernetes artifacts to install or update the K8s CRD and CR
+	err = client.GenerateExclusivity(ctx, membershipID)
+	if err != nil {
+		return "", fmt.Errorf("Generating K8s exclusivity artifacts: %w", err)
+	}
+	
+	// Install the membership CRD and the membership CR in the kubernetes cluster
+	err = k8s.InstallExclusivityManifests(ctx, k8sAuth, client.K8S.CRDManifest, client.K8S.CRManifest)
+	if err != nil {
+		return "", fmt.Errorf("Replacing CRD and CR manifest in the Kubernetes cluster: %w", err)
 	}
 
 	return client.K8S.UUID, nil
