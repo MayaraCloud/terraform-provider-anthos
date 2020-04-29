@@ -76,7 +76,7 @@ func CreateMembership(project string, membershipID string, description string, g
 	// Install the membership CRD and the membership CR in the kubernetes cluster
 	err = k8s.InstallExclusivityManifests(ctx, k8sAuth, client.K8S.CRDManifest, client.K8S.CRManifest)
 	if err != nil {
-		return "", fmt.Errorf("Replacing CRD and CR manifest in the Kubernetes cluster: %w", err)
+		return "", fmt.Errorf("Installing CRD and CR manifest in the Kubernetes cluster: %w", err)
 	}
 
 	return client.K8S.UUID, nil

@@ -95,7 +95,11 @@ func GetMembershipCR(ctx context.Context, auth Auth) (string, error) {
 	}
 	object, err := kubeClient.RESTClient().Get().AbsPath(CRAbspath).DoRaw(ctx)
 	if err != nil {
-		return "", fmt.Errorf("Getting the membership object: %w", err)
+		// If there is no Membership CR we just return an empty string
+		if strings.Contains(err.Error(), "the server could not find the requested resource") {		
+			return "", nil
+		}
+		return "", fmt.Errorf("Getting the membership CR object: %w", err)
 	}
 	yamlObject, err := yaml.JSONToYAML(object)
 	if err != nil {
@@ -152,17 +156,28 @@ func InstallExclusivityManifests(ctx context.Context, auth Auth, CRDManifest str
 }
 
 func installRawArtifact(ctx context.Context, kubeClient *kubernetes.Clientset, absPath string, artifact string) error {
-
-	_, err := kubeClient.RESTClient().Get().AbsPath(absPath).DoRaw(ctx)
+	JSONArtifact, err := yaml.YAMLToJSON([]byte(artifact))
+	if err != nil {
+		return fmt.Errorf("Converting yaml to json: %w", err)
+	}
+	_, err = kubeClient.RESTClient().Get().AbsPath(absPath).DoRaw(ctx)
 	if err != nil {
 		// If there is no artifact CREATE, otherwise, PATCH
 		if strings.Contains(err.Error(), "the server could not find the requested resource") {		
+			// The CRD API requires a different absolute path on creation
+			if absPath == CRDAbspath {
+				absPath = "apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions"
+			}
 			debug.GoLog("installRawArtifact: installing the artifact " + absPath)
-			_, err = kubeClient.RESTClient().Post().Body([]byte(artifact)).AbsPath(absPath).DoRaw(ctx)
+			
+			// The creating api seems to only like JSON
+			_, err = kubeClient.RESTClient().Post().Body(JSONArtifact).AbsPath(absPath).DoRaw(ctx)
 			if err != nil {
 				return fmt.Errorf("Error CREATING %v: %w", absPath, err)
 			}
+			return nil
 		}
+		// If the error is a not a "not found", then return it
 		return fmt.Errorf("Getting %v: %w", absPath, err)
 	}
 	

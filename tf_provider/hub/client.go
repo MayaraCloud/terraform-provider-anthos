@@ -381,7 +381,7 @@ func (c *Client) GenerateExclusivity(ctx context.Context, membershipID string) e
 		return fmt.Errorf("reading get request body: %w", err)
 	}
 
-	debug.GoLog("Generate manifest response: " + string(body))
+	debug.GoLog("GenerateExclusivity: manifest response: " + string(body))
 
 	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
 	if !statusOK {
@@ -389,8 +389,8 @@ func (c *Client) GenerateExclusivity(ctx context.Context, membershipID string) e
 	}
 
 	type manifestResponse struct {
-		crdManifest string
-		crManifest string
+		CRDManifest string `json:"crdManifest"`
+		CRManifest string `json:"crManifest"`
 	}
 	var result manifestResponse
 	err = json.Unmarshal(body, &result)
@@ -399,8 +399,11 @@ func (c *Client) GenerateExclusivity(ctx context.Context, membershipID string) e
 	}
 
 	// Populate the client with the manifest and CRD from the gkehub API
-	c.K8S.CRDManifest = result.crdManifest
-	c.K8S.CRManifest = result.crManifest
+	c.K8S.CRDManifest = result.CRDManifest
+	c.K8S.CRManifest = result.CRManifest
+	if result.CRDManifest == "" && result.CRManifest == "" {
+		debug.GoLog("GenerateExclusivity: the client received empty strings")
+	}
 
 	return nil
 }
