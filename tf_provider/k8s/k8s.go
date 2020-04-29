@@ -80,13 +80,19 @@ func GetK8sClusterUUID(ctx context.Context, auth Auth) (string, error) {
 	return string(namespace.GetUID()), nil
 }
 
+// Absolute Kubernetes API paths of the exclusivity artifacts
+const (
+	CRDAbspath string = "apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/memberships.hub.gke.io"
+	CRAbspath = "apis/hub.gke.io/v1/memberships/membership"
+)
+
 // GetMembershipCR get the Membership CR
 func GetMembershipCR(ctx context.Context, auth Auth) (string, error) {
 	kubeClient, err := KubeClientSet(auth)
 	if err != nil {
 		return "", fmt.Errorf("Initializing Kube clientset: %w", err)
 	}
-	object, err := kubeClient.RESTClient().Get().AbsPath("apis/hub.gke.io/v1/memberships/membership").DoRaw(ctx)
+	object, err := kubeClient.RESTClient().Get().AbsPath(CRAbspath).DoRaw(ctx)
 	if err != nil {
 		return "", fmt.Errorf("Getting the membership object: %w", err)
 	}
@@ -103,7 +109,7 @@ func GetMembershipCRD(ctx context.Context, auth Auth) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Initializing Kube clientset: %w", err)
 	}
-	object, err := kubeClient.RESTClient().Get().AbsPath("apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/memberships.hub.gke.io").DoRaw(ctx)
+	object, err := kubeClient.RESTClient().Get().AbsPath(CRDAbspath).DoRaw(ctx)
 	if err != nil {
 		// If there is no Membership CRD we just return an empty string
 		if strings.Contains(err.Error(), "the server could not find the requested resource") {		
@@ -126,13 +132,13 @@ func InstallExclusivityManifests(ctx context.Context, auth Auth, CRDManifest str
 		return fmt.Errorf("Initializing Kube clientset: %w", err)
 	}
 	if CRDManifest != "" {
-		err = installRawArtifact(ctx, kubeClient, "apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/memberships.hub.gke.io", CRDManifest)
+		err = installRawArtifact(ctx, kubeClient, CRDAbspath, CRDManifest)
 		if err != nil {
 			return fmt.Errorf("Installing CRD: %w", err)
 		}
 	}
 	if CRManifest != "" {
-		err = installRawArtifact(ctx, kubeClient, "apis/hub.gke.io/v1/memberships/membership", CRManifest)
+		err = installRawArtifact(ctx, kubeClient, CRAbspath, CRManifest)
 		if err != nil {
 			return fmt.Errorf("Installing CR: %w", err)
 		}
@@ -158,6 +164,33 @@ func installRawArtifact(ctx context.Context, kubeClient *kubernetes.Clientset, a
 	_, err = kubeClient.RESTClient().Patch(k8sTypes.ApplyPatchType).Body([]byte(artifact)).AbsPath(absPath).DoRaw(ctx)
 	if err != nil {
 		return fmt.Errorf("Error PATCHING %v: %w", absPath, err)
+	}
+
+	return nil
+}
+
+// DeleteArtifacts deletes the CRD and CR manifests in the cluster
+func DeleteArtifacts(ctx context.Context, auth Auth) error {
+	kubeClient, err := KubeClientSet(auth)
+	if err != nil {
+		return fmt.Errorf("Initializing Kube clientset: %w", err)
+	}
+	artifacts := []string{ CRDAbspath, CRAbspath }
+	for _, artifact := range(artifacts) {
+		// Check if the artifact exists
+		_, err := kubeClient.RESTClient().Get().AbsPath(artifact).DoRaw(ctx)
+		if err != nil {
+			// If there is no artifact no need to delete it
+			if strings.Contains(err.Error(), "the server could not find the requested resource") {		
+				return nil
+			}
+			return fmt.Errorf("Getting the artifact before deleting: %w", err)
+		}
+		// Delete the resource
+		_, err = kubeClient.RESTClient().Delete().AbsPath(artifact).DoRaw(ctx)
+		if err != nil {
+			return fmt.Errorf("Error DELETING %v: %w", artifact, err)
+		}
 	}
 
 	return nil

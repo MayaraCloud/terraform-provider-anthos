@@ -83,7 +83,7 @@ func CreateMembership(project string, membershipID string, description string, g
 }
 
 // DeleteMembership deletes a membership GKEHub resource 
-func DeleteMembership(project string, membershipID string, description string, gkeClusterSelfLink string, issuerURL string, k8sAuth k8s.Auth) error {
+func DeleteMembership(project string, membershipID string, description string, gkeClusterSelfLink string, issuerURL string, k8sAuth k8s.Auth, deleteArtifacts bool) error {
 	client, err := NewClient(ctx, project, k8sAuth)
 	if err != nil {
 		return fmt.Errorf("Getting new client: %w", err)
@@ -113,6 +113,14 @@ func DeleteMembership(project string, membershipID string, description string, g
 
 	if err != nil {
 		return fmt.Errorf("Waiting for resource to me deleted: %w", err)
+	}
+
+	// Delete K8s artifacts if deleteArtifacts is set to true
+	if deleteArtifacts {
+		err = k8s.DeleteArtifacts(ctx, k8sAuth)
+		if err != nil {
+			return fmt.Errorf("Deleting artifacts: %w", err)
+		}
 	}
 
 	return nil

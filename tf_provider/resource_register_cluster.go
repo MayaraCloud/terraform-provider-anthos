@@ -46,6 +46,13 @@ func resourceMembership() *schema.Resource {
                 Description: "Use a context of the default credentials file",
                 ConflictsWith: []string{"k8s_config_file"},
             },
+            "delete_artifacts_on_destroy": &schema.Schema{
+                Type:     schema.TypeBool,
+                Default: true,
+                Required: false,
+                Optional: true,
+                Description: "When deleting the cluster from the Hub, delete also the artifacts installed in the Kubernetes cluster",
+            },
         },
     }
 }
@@ -76,7 +83,7 @@ func resourceMembershipDelete(d *schema.ResourceData, m interface{}) error {
     
     k8sAuth.KubeConfigFile = d.Get("k8s_config_file").(string)
     k8sAuth.KubeContext = d.Get("k8s_context").(string)
-    err := hub.DeleteMembership(d.Get("hub_project_id").(string), d.Get("cluster_name").(string), "", d.Get("description").(string), "", k8sAuth)
+    err := hub.DeleteMembership(d.Get("hub_project_id").(string), d.Get("cluster_name").(string), "", d.Get("description").(string), "", k8sAuth, d.Get("delete_artifacts_on_destroy").(bool))
     if err != nil {
         return fmt.Errorf("Deleting Membership: %w", err)
     }
