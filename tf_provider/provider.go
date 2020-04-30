@@ -9,7 +9,7 @@ func Provider() *schema.Provider {
         return &schema.Provider{
                 ResourcesMap: map[string]*schema.Resource{
                         "anthos_cluster_membership": resourceMembership(),
-                        "anthos_gke_connect_agent": resourceMembership(),
+                        "anthos_gke_connect_agent": resourceGkeConnectAgent(),
                 },
         }
 }

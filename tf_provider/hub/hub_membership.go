@@ -145,7 +145,7 @@ func (c *Client) CheckOperation(operationName string) error {
 	// Go ahead with the request
 	response, err := c.svc.client.Get(u.String())
 	if err != nil {
-		return retry.Unrecoverable(fmt.Errorf("create POST request: %w", err))
+		return retry.Unrecoverable(fmt.Errorf("GET request: %w", err))
 	}
 	defer response.Body.Close()
 	

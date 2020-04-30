@@ -2,6 +2,7 @@ package hub
 
 import (
 	"gitlab.com/mayara/private/anthos/k8s"
+	"gitlab.com/mayara/private/anthos/debug"
 	"fmt"
 	"context"
 	"github.com/avast/retry-go"
@@ -123,5 +124,40 @@ func DeleteMembership(project string, membershipID string, description string, g
 		}
 	}
 
+	return nil
+}
+
+// ConnectAgent holds info needed to request and process a gek-connect-agent object
+type ConnectAgent struct {
+	Proxy string
+	Namespace string
+	Version string
+	IsUpgrade bool
+	Registry string
+	ImagePullSecretContent string
+	Response ConnectManifestResponse
+}
+
+// InstallOrUpdateConnectAgent retrieves the connect-agent manifests from the gke api
+// and installs or update them into a Kubernetes cluster
+func (ca ConnectAgent) InstallOrUpdateConnectAgent(project string, membershipID string, k8sAuth k8s.Auth)  error {
+	client, err := NewClient(ctx, project, k8sAuth)
+	if err != nil {
+		return fmt.Errorf("Getting new membership client: %w", err)
+	}
+
+	// Get membership info
+	err = client.GetMembership(membershipID, false)	
+	if err != nil {
+		return fmt.Errorf("Checking membership info: %w", err)
+	}
+
+	// Call the api and get the manifests
+	ca.Response, err = client.GenerateConnectManifest(ca.Proxy, ca.Namespace, ca.Version, ca.IsUpgrade, ca.Registry, ca.ImagePullSecretContent)
+	if err != nil {
+		return fmt.Errorf("Generating connect-agent manifests: %w", err)
+	}
+	
+	debug.GoLog("InstallOrUpdateConnectAgent: first response manifest: " + ca.Response.Manifest[0].Manifest)
 	return nil
 }

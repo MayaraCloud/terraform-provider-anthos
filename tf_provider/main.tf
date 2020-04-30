@@ -9,7 +9,7 @@ resource "anthos_gke_connect_agent" "mayara_eks_agent" {
     cluster_name = anthos_cluster_membership.mayara_eks.cluster_name
     k8s_context = anthos_cluster_membership.mayara_eks.k8s_context
     description = "mayara AWS based k8s gke connect agent"
-    hub_project_id = anthos_cluster_membership.mayara_eks.hub_project_id
+    project = anthos_cluster_membership.mayara_eks.hub_project_id
 }
 
 #resource "anthos_cluster_membership" "mayara_gke" {
