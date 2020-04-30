@@ -3,7 +3,6 @@ package hub
 import (
 	"io"
 	"io/ioutil"
-	"context"
 	"fmt"
 	"encoding/json"
 	"net/http"
@@ -15,7 +14,7 @@ import (
 
 // GetMembership gets details of a hub membership.
 // This method also initializes/updates the client component
-func (c *Client) GetMembership(ctx context.Context, membershipID string, checkNotExisting bool) error {
+func (c *Client) GetMembership(membershipID string, checkNotExisting bool) error {
 	// Call the gkehub api
 	APIURL := prodAddr + "v1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + membershipID
 	response, err := c.svc.client.Get(APIURL)
@@ -55,16 +54,16 @@ func (c *Client) GetMembership(ctx context.Context, membershipID string, checkNo
 // CreateMembership creates a hub membership
 // The client object should already contain the
 // updated resource component updated in another method
-func (c *Client) CreateMembership(ctx context.Context, membershipID string) error {
+func (c *Client) CreateMembership(membershipID string) error {
 	// Validate exclusivity if the cluster has a manifest CRD present
 	if c.K8S.CRManifest != "" {
-		err := c.ValidateExclusivity(ctx, membershipID)
+		err := c.ValidateExclusivity(membershipID)
 		if err != nil {
 			return fmt.Errorf("Validating exclusivity: %w", err)
 		}
 	}
 	// Calling the creation API
-	createResponse, err := c.CallCreateMembershipAPI(ctx, membershipID)
+	createResponse, err := c.CallCreateMembershipAPI(membershipID)
 	if err != nil {
 		return fmt.Errorf("Calling CallCreateMembershipAPI: %w", err)
 	}
@@ -73,7 +72,7 @@ func (c *Client) CreateMembership(ctx context.Context, membershipID string) erro
 	retry.Attempts(60)
 	err = retry.Do(
 		func() error {
-			return c.CheckOperation(ctx, createResponse["name"].(string))
+			return c.CheckOperation(createResponse["name"].(string))
 		})
 
 	if err != nil {
@@ -85,7 +84,7 @@ func (c *Client) CreateMembership(ctx context.Context, membershipID string) erro
 // CallCreateMembershipAPI creates a hub membership
 // The client object should already contain the
 // updated resource component updated in another method
-func (c *Client) CallCreateMembershipAPI(ctx context.Context, membershipID string) (HTTPResult, error) {
+func (c *Client) CallCreateMembershipAPI(membershipID string) (HTTPResult, error) {
 	// Create the json POST request body
 	var rawBody struct{
 		Description string `json:"description"`
@@ -132,7 +131,7 @@ func DecodeHTTPResult(httpBody io.ReadCloser) (HTTPResult, error) {
 }
 
 // CheckOperation checks a hub operation status and returns true if the operation is done
-func (c *Client) CheckOperation(ctx context.Context, operationName string) error {
+func (c *Client) CheckOperation(operationName string) error {
 	// Create a url object to append parameters to it
 	APIURL := prodAddr + "v1/" + operationName
 	// Create the url parameters
@@ -168,7 +167,7 @@ func (c *Client) CheckOperation(ctx context.Context, operationName string) error
 }
 
 // ValidateExclusivity checks the cluster exclusivity against the API
-func (c *Client) ValidateExclusivity(ctx context.Context, membershipID string) error {
+func (c *Client) ValidateExclusivity(membershipID string) error {
 	// Call the gkehub api
 	APIURL := prodAddr + "v1beta1/projects/" + c.projectID + "/locations/" + c.location + "/memberships:validateExclusivity"
 	// Create the url parameters
@@ -231,7 +230,7 @@ type GRCPResponseStatus struct {
 }
 
 // GenerateExclusivity checks the cluster exclusivity against the API
-func (c *Client) GenerateExclusivity(ctx context.Context, membershipID string) error {
+func (c *Client) GenerateExclusivity(membershipID string) error {
 	// Call the gkehub api
 	APIURL := prodAddr + "v1beta1/projects/" + c.projectID + "/locations/" + c.location + "/memberships/" + membershipID + ":generateExclusivityManifest"
 
@@ -288,7 +287,7 @@ func (c *Client) GenerateExclusivity(ctx context.Context, membershipID string) e
 // DeleteMembership deletes a hub membership
 // The client object should already contain the
 // updated resource component updated in another method
-func (c *Client) DeleteMembership(ctx context.Context) error {
+func (c *Client) DeleteMembership() error {
 	// Delete a url object to append parameters to it
 	APIURL := prodAddr + "v1/" + c.Resource.Name
 

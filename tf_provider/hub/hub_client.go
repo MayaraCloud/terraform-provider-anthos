@@ -27,6 +27,7 @@ type Client struct {
 	location string // location of the membership
 	Resource Resource
 	K8S K8S
+	ctx context.Context
 }
 
 // K8S contains the membership K8S manifests
@@ -95,14 +96,15 @@ func NewClient(ctx context.Context, projectID string, k8sAuth k8s.Auth) (*Client
 		//FIXME not sure this should be hardcoded, but the api works as global, it will probably change in the future
 		location: "global",
 		K8S: k,
+		ctx: ctx,
 	}
 
 	return c, nil
 }
 
 // GetKubeUUID grabs the namespace UID of the K8s cluster 
-func (c *Client) GetKubeUUID(ctx context.Context) error {
-    kubeUUID, err := k8s.GetK8sClusterUUID(ctx, c.K8S.Auth)
+func (c *Client) GetKubeUUID() error {
+    kubeUUID, err := k8s.GetK8sClusterUUID(c.ctx, c.K8S.Auth)
     if err != nil {
         return fmt.Errorf("Getting uuid: %w", err)
 	}
@@ -111,13 +113,13 @@ func (c *Client) GetKubeUUID(ctx context.Context) error {
 }
 
 // GetKubeArtifacts grabs the K8s CRD and manifest resource if existing
-func (c *Client) GetKubeArtifacts(ctx context.Context) error {
-    membershipCRD, err := k8s.GetMembershipCRD(ctx, c.K8S.Auth)
+func (c *Client) GetKubeArtifacts() error {
+    membershipCRD, err := k8s.GetMembershipCRD(c.ctx, c.K8S.Auth)
     if err != nil {
         return fmt.Errorf("Getting membership k8s crd: %w", err)
 	}
 	if membershipCRD != "" {
-		membershipCR, err := k8s.GetMembershipCR(ctx, c.K8S.Auth)
+		membershipCR, err := k8s.GetMembershipCR(c.ctx, c.K8S.Auth)
 		if err != nil {
 		    return fmt.Errorf("Getting membership k8s resource: %w", err)
 		}

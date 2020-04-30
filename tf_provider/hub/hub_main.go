@@ -25,7 +25,7 @@ func GetMembership(project string, membershipID string, description string, gkeC
 	if err != nil {
 		return fmt.Errorf("Getting new client: %w", err)
 	}
-	return client.GetMembership(ctx, membershipID, false)
+	return client.GetMembership(membershipID, false)
 }
 
 // CreateMembership creates a membership GKEHub resource 
@@ -36,18 +36,18 @@ func CreateMembership(project string, membershipID string, description string, g
 	}
 	
 	// Get the K8s default namespace UID
-	err = client.GetKubeUUID(ctx)
+	err = client.GetKubeUUID()
 	if err != nil {
 		return "", fmt.Errorf("Getting Kube UID: %w", err)
 	}
 
-	err = client.GetKubeArtifacts(ctx)
+	err = client.GetKubeArtifacts()
 	if err != nil {
 		return "", fmt.Errorf("Getting Kube custom artifacts: %w", err)
 	}
 
 	// Check if membership does not already exist
-	err = client.GetMembership(ctx, membershipID, true)	
+	err = client.GetMembership(membershipID, true)	
 	if err != nil {
 		return "", fmt.Errorf("Checking if membership does not exist: %w", err)
 	}
@@ -56,25 +56,25 @@ func CreateMembership(project string, membershipID string, description string, g
 	client.Resource.Description = membershipID
 	client.Resource.Endpoint.GKECluster.ResourceLink = gkeClusterSelfLink
 	// Create the membership
-	err = client.CreateMembership(ctx, membershipID)
+	err = client.CreateMembership(membershipID)
 	if err != nil {
 		return "", fmt.Errorf("Creating membership membership: %w", err)
 	}
 
 	// Get membership info after creation, just to double check that all went fine
-	err = client.GetMembership(ctx, membershipID, false)	
+	err = client.GetMembership(membershipID, false)	
 	if err != nil {
 		return "", fmt.Errorf("Checking getting membership info after creation: %w", err)
 	}
 
 	// Get Kubernetes artifacts to install or update the K8s CRD and CR
-	err = client.GenerateExclusivity(ctx, membershipID)
+	err = client.GenerateExclusivity(membershipID)
 	if err != nil {
 		return "", fmt.Errorf("Generating K8s exclusivity artifacts: %w", err)
 	}
 	
 	// Install the membership CRD and the membership CR in the kubernetes cluster
-	err = k8s.InstallExclusivityManifests(ctx, k8sAuth, client.K8S.CRDManifest, client.K8S.CRManifest)
+	err = k8s.InstallExclusivityManifests(client.ctx, k8sAuth, client.K8S.CRDManifest, client.K8S.CRManifest)
 	if err != nil {
 		return "", fmt.Errorf("Installing CRD and CR manifest in the Kubernetes cluster: %w", err)
 	}
@@ -89,13 +89,13 @@ func DeleteMembership(project string, membershipID string, description string, g
 		return fmt.Errorf("Getting new client: %w", err)
 	}
 	// Get membership info
-	err = client.GetMembership(ctx, membershipID, false)	
+	err = client.GetMembership(membershipID, false)	
 	if err != nil {
 		return fmt.Errorf("Checking membership info: %w", err)
 	}
 
 	// Delete the membership
-	err = client.DeleteMembership(ctx)
+	err = client.DeleteMembership()
 	if err != nil {
 		return fmt.Errorf("Deleting membership: %w", err)
 	}
@@ -104,7 +104,7 @@ func DeleteMembership(project string, membershipID string, description string, g
 	retry.Attempts(60)
 	err = retry.Do(
 		func() error {
-			err := client.GetMembership(ctx, membershipID, true)
+			err := client.GetMembership(membershipID, true)
 			if err != nil && client.Resource.State.Code == "DELETING" {
 				return nil
 			}
