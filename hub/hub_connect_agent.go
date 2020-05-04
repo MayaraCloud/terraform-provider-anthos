@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+
+	"github.com/MayaraCloud/terraform-provider-anthos/k8s"
 )
 
 // GenerateConnectManifest asks the gkehub API for a gke-connect-agent manifest
-func (c *Client) GenerateConnectManifest(proxy string, namespace string, version string, isUpgrade bool, registry string, imagePullSecretContent string) (ConnectManifestResponse, error) {
-	var result ConnectManifestResponse
+func (c *Client) GenerateConnectManifest(proxy string, namespace string, version string, isUpgrade bool, registry string, imagePullSecretContent string) (k8s.ConnectManifestResponse, error) {
+	var result k8s.ConnectManifestResponse
 	// Create a url object to append parameters to it
 	APIURL := prodAddr + "v1beta1/" + c.Resource.Name + ":generateConnectManifest"
 	// Create the url parameters
@@ -62,21 +64,4 @@ func (c *Client) GenerateConnectManifest(proxy string, namespace string, version
 
 	return result, nil
 
-}
-
-// ConnectManifestResponse contains the connect agent manifest response
-type ConnectManifestResponse struct {
-	Manifest []ConnectAgentResource `json:"manifest"`
-}
-
-// ConnectAgentResource is part of GenerateConnectManifestResponse
-type ConnectAgentResource struct {
-	Type     ConnectAgentResourceType `json:"type"`
-	Manifest string                   `json:"manifest"`
-}
-
-// ConnectAgentResourceType is part of ConnectAgentResource
-type ConnectAgentResourceType struct {
-	Kind       string `json:"kind"`
-	APIVersion string `json:"apiVersion"`
 }

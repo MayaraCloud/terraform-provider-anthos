@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/MayaraCloud/terraform-provider-anthos/debug"
 	"github.com/MayaraCloud/terraform-provider-anthos/k8s"
 	"github.com/avast/retry-go"
 )
@@ -127,7 +126,7 @@ func DeleteMembership(project string, membershipID string, description string, g
 	return nil
 }
 
-// ConnectAgent holds info needed to request and process a gek-connect-agent object
+// ConnectAgent holds info needed to request and process a gke-connect-agent object
 type ConnectAgent struct {
 	Proxy                  string
 	Namespace              string
@@ -135,7 +134,7 @@ type ConnectAgent struct {
 	IsUpgrade              bool
 	Registry               string
 	ImagePullSecretContent string
-	Response               ConnectManifestResponse
+	Response               k8s.ConnectManifestResponse
 }
 
 // InstallOrUpdateConnectAgent retrieves the connect-agent manifests from the gke api
@@ -158,6 +157,10 @@ func (ca ConnectAgent) InstallOrUpdateConnectAgent(project string, membershipID 
 		return fmt.Errorf("Generating connect-agent manifests: %w", err)
 	}
 
-	debug.GoLog("InstallOrUpdateConnectAgent: first response manifest: " + ca.Response.Manifest[0].Manifest)
+	err = k8s.InstallOrUpdateGKEConnectAgent(ctx, k8sAuth, ca.Response)
+	if err != nil {
+		return fmt.Errorf("Calling InstallOrUpdateGKEConnectAgent: %w", err)
+	}
+
 	return nil
 }
