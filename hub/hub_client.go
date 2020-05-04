@@ -7,7 +7,7 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 	htransport "google.golang.org/api/transport/http"
-    "gitlab.com/mayara/private/anthos/k8s"
+    "github.com/MayaraCloud/terraform-provider-anthos/k8s"
 )
 
 const prodAddr = "https://gkehub.googleapis.com/"

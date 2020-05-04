@@ -4,7 +4,7 @@ import (
     "github.com/hashicorp/terraform-plugin-sdk/plugin"
     "github.com/hashicorp/terraform-plugin-sdk/terraform"
     "os"
-	"gitlab.com/mayara/private/anthos/debug"
+    "github.com/MayaraCloud/terraform-provider-anthos/debug"
 )
 
 func main() {

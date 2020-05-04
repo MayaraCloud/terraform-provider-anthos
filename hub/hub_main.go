@@ -1,8 +1,8 @@
 package hub
 
 import (
-	"gitlab.com/mayara/private/anthos/k8s"
-	"gitlab.com/mayara/private/anthos/debug"
+	"github.com/MayaraCloud/terraform-provider-anthos/k8s"
+	"github.com/MayaraCloud/terraform-provider-anthos/debug"
 	"fmt"
 	"context"
 	"github.com/avast/retry-go"

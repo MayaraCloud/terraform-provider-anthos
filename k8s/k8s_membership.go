@@ -8,7 +8,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	k8sTypes "k8s.io/apimachinery/pkg/types"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // This is needed for gcp auth
-    "gitlab.com/mayara/private/anthos/debug"
+    "github.com/MayaraCloud/terraform-provider-anthos/debug"
 )
 
 // Absolute Kubernetes API paths of the exclusivity artifacts

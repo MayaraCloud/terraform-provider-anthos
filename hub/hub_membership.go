@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"bytes"
 	"github.com/avast/retry-go"
-    "gitlab.com/mayara/private/anthos/debug"
+    "github.com/MayaraCloud/terraform-provider-anthos/debug"
 )
 
 // GetMembership gets details of a hub membership.

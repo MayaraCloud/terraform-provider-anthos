@@ -2,8 +2,8 @@ package main
 
 import (
     "fmt"
-	"gitlab.com/mayara/private/anthos/k8s"
-	"gitlab.com/mayara/private/anthos/hub"
+	"github.com/MayaraCloud/terraform-provider-anthos/k8s"
+	"github.com/MayaraCloud/terraform-provider-anthos/hub"
     "github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
