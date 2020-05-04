@@ -14,4 +14,6 @@ crash.log
 # vscode
 .vscode
 
-
+# notes
+notes.txt
+notes.json
