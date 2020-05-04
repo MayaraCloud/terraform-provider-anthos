@@ -4,38 +4,38 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+
+	"github.com/MayaraCloud/terraform-provider-anthos/k8s"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 	htransport "google.golang.org/api/transport/http"
-    "github.com/MayaraCloud/terraform-provider-anthos/k8s"
 )
 
 const prodAddr = "https://gkehub.googleapis.com/"
 const userAgent = "gcloud-golang-hub/20200520"
 
 const (
-    // View and manage your data across Google Cloud Platform services
-    cloudPlatformScope = "https://www.googleapis.com/auth/cloud-platform"
+	// View and manage your data across Google Cloud Platform services
+	cloudPlatformScope = "https://www.googleapis.com/auth/cloud-platform"
 )
-
 
 // Client is a Google Connect Hub client, which may be used to manage
 // hub memberships with a project. It must be constructed via NewClient.
 type Client struct {
 	projectID string
 	svc       *Service
-	location string // location of the membership
-	Resource Resource
-	K8S K8S
-	ctx context.Context
+	location  string // location of the membership
+	Resource  Resource
+	K8S       K8S
+	ctx       context.Context
 }
 
 // K8S contains the membership K8S manifests
 type K8S struct {
-	CRManifest string
+	CRManifest  string
 	CRDManifest string
-	Auth k8s.Auth // K8s auth info
-	UUID string // default namespace UID
+	Auth        k8s.Auth // K8s auth info
+	UUID        string   // default namespace UID
 }
 
 // Service type contains the http client and its context info
@@ -58,9 +58,8 @@ func GetOptionsWithCreds(project string) (option.ClientOption, error) {
 	return options, nil
 }
 
-
 // NewClient creates a GKE hub client
-func NewClient(ctx context.Context, projectID string, k8sAuth k8s.Auth) (*Client, error){
+func NewClient(ctx context.Context, projectID string, k8sAuth k8s.Auth) (*Client, error) {
 	options, err := GetOptionsWithCreds(projectID)
 	if err != nil {
 		return nil, fmt.Errorf("Getting options with credentials: %w", err)
@@ -81,7 +80,7 @@ func NewClient(ctx context.Context, projectID string, k8sAuth k8s.Auth) (*Client
 
 	// Populate the svc object of the client
 	s := &Service{
-		client: httpClient,
+		client:   httpClient,
 		BasePath: endpoint,
 	}
 
@@ -92,21 +91,21 @@ func NewClient(ctx context.Context, projectID string, k8sAuth k8s.Auth) (*Client
 	// Populate the Client object itself
 	c := &Client{
 		projectID: projectID,
-		svc: s,
+		svc:       s,
 		//FIXME not sure this should be hardcoded, but the api works as global, it will probably change in the future
 		location: "global",
-		K8S: k,
-		ctx: ctx,
+		K8S:      k,
+		ctx:      ctx,
 	}
 
 	return c, nil
 }
 
-// GetKubeUUID grabs the namespace UID of the K8s cluster 
+// GetKubeUUID grabs the namespace UID of the K8s cluster
 func (c *Client) GetKubeUUID() error {
-    kubeUUID, err := k8s.GetK8sClusterUUID(c.ctx, c.K8S.Auth)
-    if err != nil {
-        return fmt.Errorf("Getting uuid: %w", err)
+	kubeUUID, err := k8s.GetK8sClusterUUID(c.ctx, c.K8S.Auth)
+	if err != nil {
+		return fmt.Errorf("Getting uuid: %w", err)
 	}
 	c.K8S.UUID = kubeUUID
 	return nil
@@ -114,14 +113,14 @@ func (c *Client) GetKubeUUID() error {
 
 // GetKubeArtifacts grabs the K8s CRD and manifest resource if existing
 func (c *Client) GetKubeArtifacts() error {
-    membershipCRD, err := k8s.GetMembershipCRD(c.ctx, c.K8S.Auth)
-    if err != nil {
-        return fmt.Errorf("Getting membership k8s crd: %w", err)
+	membershipCRD, err := k8s.GetMembershipCRD(c.ctx, c.K8S.Auth)
+	if err != nil {
+		return fmt.Errorf("Getting membership k8s crd: %w", err)
 	}
 	if membershipCRD != "" {
 		membershipCR, err := k8s.GetMembershipCR(c.ctx, c.K8S.Auth)
 		if err != nil {
-		    return fmt.Errorf("Getting membership k8s resource: %w", err)
+			return fmt.Errorf("Getting membership k8s resource: %w", err)
 		}
 		c.K8S.CRManifest = membershipCR
 	}
@@ -129,4 +128,3 @@ func (c *Client) GetKubeArtifacts() error {
 
 	return nil
 }
-

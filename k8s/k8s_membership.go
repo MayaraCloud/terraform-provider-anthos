@@ -1,20 +1,21 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 	"strings"
-	"context"
+
+	"github.com/MayaraCloud/terraform-provider-anthos/debug"
 	"github.com/ghodss/yaml"
-	"k8s.io/client-go/kubernetes"
 	k8sTypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // This is needed for gcp auth
-    "github.com/MayaraCloud/terraform-provider-anthos/debug"
 )
 
 // Absolute Kubernetes API paths of the exclusivity artifacts
 const (
 	CRDAbspath string = "apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/memberships.hub.gke.io"
-	CRAbspath = "apis/hub.gke.io/v1/memberships/membership"
+	CRAbspath         = "apis/hub.gke.io/v1/memberships/membership"
 )
 
 // GetMembershipCR get the Membership CR
@@ -26,7 +27,7 @@ func GetMembershipCR(ctx context.Context, auth Auth) (string, error) {
 	object, err := kubeClient.RESTClient().Get().AbsPath(CRAbspath).DoRaw(ctx)
 	if err != nil {
 		// If there is no Membership CR we just return an empty string
-		if strings.Contains(err.Error(), "the server could not find the requested resource") {		
+		if strings.Contains(err.Error(), "the server could not find the requested resource") {
 			return "", nil
 		}
 		return "", fmt.Errorf("Getting the membership CR object: %w", err)
@@ -47,7 +48,7 @@ func GetMembershipCRD(ctx context.Context, auth Auth) (string, error) {
 	object, err := kubeClient.RESTClient().Get().AbsPath(CRDAbspath).DoRaw(ctx)
 	if err != nil {
 		// If there is no Membership CRD we just return an empty string
-		if strings.Contains(err.Error(), "the server could not find the requested resource") {		
+		if strings.Contains(err.Error(), "the server could not find the requested resource") {
 			return "", nil
 		}
 		return "", fmt.Errorf("Getting the membership CRD object: %w", err)
@@ -93,13 +94,13 @@ func installRawArtifact(ctx context.Context, kubeClient *kubernetes.Clientset, a
 	_, err = kubeClient.RESTClient().Get().AbsPath(absPath).DoRaw(ctx)
 	if err != nil {
 		// If there is no artifact CREATE, otherwise, PATCH
-		if strings.Contains(err.Error(), "the server could not find the requested resource") {		
+		if strings.Contains(err.Error(), "the server could not find the requested resource") {
 			// The CRD API requires a different absolute path on creation
 			if absPath == CRDAbspath {
 				absPath = "apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions"
 			}
 			debug.GoLog("installRawArtifact: installing the artifact " + absPath)
-			
+
 			// The creating api seems to only like JSON
 			_, err = kubeClient.RESTClient().Post().Body(JSONArtifact).AbsPath(absPath).DoRaw(ctx)
 			if err != nil {
@@ -110,7 +111,7 @@ func installRawArtifact(ctx context.Context, kubeClient *kubernetes.Clientset, a
 		// If the error is a not a "not found", then return it
 		return fmt.Errorf("Getting %v: %w", absPath, err)
 	}
-	
+
 	debug.GoLog("installRawArtifact: updating the artifact " + absPath)
 	_, err = kubeClient.RESTClient().Patch(k8sTypes.ApplyPatchType).Body([]byte(artifact)).AbsPath(absPath).DoRaw(ctx)
 	if err != nil {
@@ -126,13 +127,13 @@ func DeleteArtifacts(ctx context.Context, auth Auth) error {
 	if err != nil {
 		return fmt.Errorf("Initializing Kube clientset: %w", err)
 	}
-	artifacts := []string{ CRDAbspath, CRAbspath }
-	for _, artifact := range(artifacts) {
+	artifacts := []string{CRDAbspath, CRAbspath}
+	for _, artifact := range artifacts {
 		// Check if the artifact exists
 		_, err := kubeClient.RESTClient().Get().AbsPath(artifact).DoRaw(ctx)
 		if err != nil {
 			// If there is no artifact no need to delete it
-			if strings.Contains(err.Error(), "the server could not find the requested resource") {		
+			if strings.Contains(err.Error(), "the server could not find the requested resource") {
 				return nil
 			}
 			return fmt.Errorf("Getting the artifact before deleting: %w", err)
@@ -143,7 +144,6 @@ func DeleteArtifacts(ctx context.Context, auth Auth) error {
 			return fmt.Errorf("Error DELETING %v: %w", artifact, err)
 		}
 	}
-	
+
 	return nil
 }
-

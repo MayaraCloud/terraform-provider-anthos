@@ -1,15 +1,16 @@
 package hub
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"fmt"
-	"encoding/json"
 	"net/http"
 	"net/url"
-	"bytes"
+
+	"github.com/MayaraCloud/terraform-provider-anthos/debug"
 	"github.com/avast/retry-go"
-    "github.com/MayaraCloud/terraform-provider-anthos/debug"
 )
 
 // GetMembership gets details of a hub membership.
@@ -47,7 +48,6 @@ func (c *Client) GetMembership(membershipID string, checkNotExisting bool) error
 		return fmt.Errorf("The resource already exists in the Hub: %v", string(body))
 	}
 
-
 	return nil
 }
 
@@ -67,7 +67,7 @@ func (c *Client) CreateMembership(membershipID string) error {
 	if err != nil {
 		return fmt.Errorf("Calling CallCreateMembershipAPI: %w", err)
 	}
-	
+
 	// Wait until we get an ok from CheckOperation
 	retry.Attempts(60)
 	err = retry.Do(
@@ -86,14 +86,14 @@ func (c *Client) CreateMembership(membershipID string) error {
 // updated resource component updated in another method
 func (c *Client) CallCreateMembershipAPI(membershipID string) (HTTPResult, error) {
 	// Create the json POST request body
-	var rawBody struct{
+	var rawBody struct {
 		Description string `json:"description"`
-		ExternalID string	`json:"externalId"`
+		ExternalID  string `json:"externalId"`
 	}
 	rawBody.Description = c.Resource.Description
 	rawBody.ExternalID = c.K8S.UUID
 
-	body , err := json.Marshal(rawBody)
+	body, err := json.Marshal(rawBody)
 	if err != nil {
 		return nil, fmt.Errorf("Marshaling create request body: %w", err)
 	}
@@ -148,12 +148,12 @@ func (c *Client) CheckOperation(operationName string) error {
 		return retry.Unrecoverable(fmt.Errorf("GET request: %w", err))
 	}
 	defer response.Body.Close()
-	
+
 	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
 	if !statusOK {
 		return retry.Unrecoverable(fmt.Errorf("Bad status code: %v", response.StatusCode))
 	}
-	
+
 	result, err := DecodeHTTPResult(response.Body)
 	if err != nil {
 		return retry.Unrecoverable(fmt.Errorf("Calling DecodeHTTPResult: %w", err))
@@ -224,8 +224,8 @@ type GRCPResponseStatus struct {
 	// GenerateExclusivityManifest can successfully be applied.
 	// * ALREADY_EXISTS means that the Membership CRD is already owned by another
 	// Hub. See status.message for more information when this occurs
-	Code int32 `json:"code"`
-	Message string `json:"message"`
+	Code    int32                  `json:"code"`
+	Message string                 `json:"message"`
 	Details map[string]interface{} `json:"details"`
 }
 
@@ -266,7 +266,7 @@ func (c *Client) GenerateExclusivity(membershipID string) error {
 
 	type manifestResponse struct {
 		CRDManifest string `json:"crdManifest"`
-		CRManifest string `json:"crManifest"`
+		CRManifest  string `json:"crManifest"`
 	}
 	var result manifestResponse
 	err = json.Unmarshal(body, &result)

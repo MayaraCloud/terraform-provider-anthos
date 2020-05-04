@@ -1,10 +1,10 @@
 package hub
 
 import (
-	"net/url"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"encoding/json"
+	"net/url"
 )
 
 // GenerateConnectManifest asks the gkehub API for a gke-connect-agent manifest
@@ -49,7 +49,7 @@ func (c *Client) GenerateConnectManifest(proxy string, namespace string, version
 	if err != nil {
 		return result, fmt.Errorf("reading get request body: %w", err)
 	}
-	
+
 	statusOK := response.StatusCode >= 200 && response.StatusCode < 300
 	if !statusOK {
 		return result, fmt.Errorf("Bad status code: %v", string(body))
@@ -63,17 +63,20 @@ func (c *Client) GenerateConnectManifest(proxy string, namespace string, version
 	return result, nil
 
 }
+
 // ConnectManifestResponse contains the connect agent manifest response
 type ConnectManifestResponse struct {
 	Manifest []ConnectAgentResource `json:"manifest"`
 }
+
 // ConnectAgentResource is part of GenerateConnectManifestResponse
 type ConnectAgentResource struct {
-	Type ConnectAgentResourceType `json:"type"`
-	Manifest string `json:"manifest"`
+	Type     ConnectAgentResourceType `json:"type"`
+	Manifest string                   `json:"manifest"`
 }
+
 // ConnectAgentResourceType is part of ConnectAgentResource
 type ConnectAgentResourceType struct {
-	Kind string `json:"kind"`
+	Kind       string `json:"kind"`
 	APIVersion string `json:"apiVersion"`
 }

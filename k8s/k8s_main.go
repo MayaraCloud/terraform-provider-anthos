@@ -1,20 +1,21 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"context"
 	"path/filepath"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp" // This is needed for gcp auth
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // Auth contains authentication info for kubernetes
 type Auth struct {
 	KubeConfigFile string
-	KubeContext string
+	KubeContext    string
 }
 
 // KubeClientSet initializes the kubernetes API client
@@ -45,7 +46,7 @@ func KubeClientSet(auth Auth) (*kubernetes.Clientset, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Getting Rest config from API config: %w", err)
 	}
-	
+
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {

@@ -39,7 +39,7 @@ type Resource struct {
 
 	//Output only. Timestamp for when the Membership was deleted.
 	DeleteTime time.Time `json:"deleteTime"`
-	
+
 	// An externally-generated and managed ID for this Membership.
 	// This ID may still be modified after creation but it is not
 	// recommended to do so. The ID must match the regex: `a-zA-Z0-9*`
@@ -55,9 +55,9 @@ type Resource struct {
 
 // MembershipState contains the status of a membership
 type MembershipState struct {
-	Code stateString `json:"code"`
-	Description string `json:"description"` //Human readable description of the issue.\nThis field is deprecated, and is never set by the Hub Service.
-	UpdateTime time.Time `json:"updateTime"`
+	Code        stateString `json:"code"`
+	Description string      `json:"description"` //Human readable description of the issue.\nThis field is deprecated, and is never set by the Hub Service.
+	UpdateTime  time.Time   `json:"updateTime"`
 }
 
 type stateString string
@@ -65,11 +65,11 @@ type stateString string
 // Code indicating the state of the Membership resource
 const (
 	MembershipStateCodeUnspecified stateString = "CODE_UNSPECIFIED"
-	MembershipStateCreating = "CREATING" // CREATING indicates the cluster is being registered.
-	MembershipStateReady = "READY" // READY indicates the cluster is registered.
-	MembershipStateDeleting = "DELETING" // DELETING indicates that the cluster is being unregistered.
-	MembershipStateUpdating = "UPDATING" // indicates the Membership is being updated.
-	MembershipStateServiceUpdating = "SERVICE_UPDATING" // indicates the Membership is being updated by the Hub Service.
+	MembershipStateCreating                    = "CREATING"         // CREATING indicates the cluster is being registered.
+	MembershipStateReady                       = "READY"            // READY indicates the cluster is registered.
+	MembershipStateDeleting                    = "DELETING"         // DELETING indicates that the cluster is being unregistered.
+	MembershipStateUpdating                    = "UPDATING"         // indicates the Membership is being updated.
+	MembershipStateServiceUpdating             = "SERVICE_UPDATING" // indicates the Membership is being updated by the Hub Service.
 )
 
 // MembershipEndpoint contains a map with a membership's endpoint information
@@ -81,11 +81,11 @@ type MembershipEndpoint struct {
 }
 
 // GKECluster represents a k8s cluster on GKE.
-type GKECluster struct{
+type GKECluster struct {
 	// Self-link of the GCP resource for the GKE cluster. For example:
 	// \/\/container.googleapis.com\/v1\/projects\/my-project\/zones\/us-west1-a\/clusters\/my-cluster
 	// It can be at the most 1000 characters in length
-	ResourceLink string `json:"resourceLink"` 
+	ResourceLink string `json:"resourceLink"`
 }
 
 // Authority encodes how Google will recognize identities from this Membership.
@@ -106,4 +106,3 @@ type Authority struct {
 	// Output only. An identity provider that reflects this issuer in the identity namespace.
 	IdentityProvider string `json:"identityProvider"`
 }
-
