@@ -9,6 +9,18 @@ import (
 	"github.com/MayaraCloud/terraform-provider-anthos/k8s"
 )
 
+// ConnectAgent holds info needed to request and process a gke-connect-agent object
+type ConnectAgent struct {
+	Proxy                  string
+	Namespace              string
+	Version                string
+	IsUpgrade              bool
+	Registry               string
+	ImagePullSecretContent string
+	Response               k8s.ConnectManifestResponse
+	GCPSAKey               string
+}
+
 // GenerateConnectManifest asks the gkehub API for a gke-connect-agent manifest
 func (c *Client) GenerateConnectManifest(proxy string, namespace string, version string, isUpgrade bool, registry string, imagePullSecretContent string) (k8s.ConnectManifestResponse, error) {
 	var result k8s.ConnectManifestResponse

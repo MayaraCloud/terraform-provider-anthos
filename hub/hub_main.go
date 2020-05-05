@@ -126,17 +126,6 @@ func DeleteMembership(project string, membershipID string, description string, g
 	return nil
 }
 
-// ConnectAgent holds info needed to request and process a gke-connect-agent object
-type ConnectAgent struct {
-	Proxy                  string
-	Namespace              string
-	Version                string
-	IsUpgrade              bool
-	Registry               string
-	ImagePullSecretContent string
-	Response               k8s.ConnectManifestResponse
-}
-
 // InstallOrUpdateConnectAgent retrieves the connect-agent manifests from the gke api
 // and installs or update them into a Kubernetes cluster
 func (ca ConnectAgent) InstallOrUpdateConnectAgent(project string, membershipID string, k8sAuth k8s.Auth) error {
@@ -157,7 +146,7 @@ func (ca ConnectAgent) InstallOrUpdateConnectAgent(project string, membershipID 
 		return fmt.Errorf("Generating connect-agent manifests: %w", err)
 	}
 
-	err = k8s.InstallOrUpdateGKEConnectAgent(ctx, k8sAuth, ca.Response)
+	err = k8s.InstallOrUpdateGKEConnectAgent(ctx, k8sAuth, ca.Response, ca.GCPSAKey, ca.Namespace)
 	if err != nil {
 		return fmt.Errorf("Calling InstallOrUpdateGKEConnectAgent: %w", err)
 	}

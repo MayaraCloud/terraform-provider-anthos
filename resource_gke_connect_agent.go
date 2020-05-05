@@ -90,6 +90,13 @@ func resourceGkeConnectAgent() *schema.Resource {
 				Optional:    true,
 				Description: "The image pull secret content for the registry, if not public",
 			},
+			"gcp_sa_key": &schema.Schema{
+				Type:        schema.TypeString,
+				Required:    true,
+				Optional:    false,
+				Sensitive:   true,
+				Description: "GCP Service Account content (as string) to be used as Connect-Agent K8s secret",
+			},
 		},
 	}
 }
@@ -132,5 +139,6 @@ func initConnectAgent(d *schema.ResourceData, m interface{}) hub.ConnectAgent {
 		IsUpgrade:              d.Get("is_upgrade").(bool),
 		Registry:               d.Get("registry").(string),
 		ImagePullSecretContent: d.Get("image_pull_secret_content").(string),
+		GCPSAKey:               d.Get("gcp_sa_key").(string),
 	}
 }
